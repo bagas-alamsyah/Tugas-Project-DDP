@@ -62,7 +62,7 @@ cd lomba_match
 python -m venv venv
 source venv/bin/activate        # Windows: venv\Scripts\activate
 pip install -r requirements.txt
-python app.py
+streamlit run app.py
 ```
 
 Then open http://127.0.0.1:5000
@@ -92,4 +92,4 @@ This is an end-term project MVP, so:
 
 ## Tech Stack
 
-Python, Streamlib, SQLite, SQLAlchemy, HTML/CSS
+Python, Streamlit, SQLite, pandas
