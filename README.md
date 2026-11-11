@@ -1,40 +1,46 @@
 # Tugas DDP1 - Kelompok 17
----
-## Deskripsi:
-Tugas akhir DPP1 (G) Fasilkom UI Kelompok 17
 
-## Anggota:
+---
+
+## Deskripsi
+
+Tugas akhir DDP1 (G) Fasilkom UI Kelompok 17
+
+## Anggota
+
 - Haris Zidan
 - Farraj Bagas Alamsyah
 - Muhammad Nur Ataya
 
 # Cari Teman Lomba
 
-A web app that helps university students find teammates for competitions
-(hackathons, business case, data science, UI/UX) based on skills, roles, and
-availability.
+A web app that helps university students find teammates for competitions (hackathons, business case, data science, UI/UX) based on skills, roles, and availability.
 
 ## Features
 
-- Register and log in
-- Create a profile: name, major, year, campus, skills with levels
-  (beginner / intermediate / advanced), availability, optional portfolio link
+**MVP (must have)**
+
+- Create a profile: name, major, year, campus, skills with levels (beginner / intermediate / advanced), availability, optional portfolio link
 - Browse competitions: name, category, deadlines, team size, roles needed
-- Get a ranked list of recommended teammates or teams for a competition
+- Get a ranked list of recommended teammates for a competition
+
+**If time permits**
+
+- Register and log in (password hashed with bcrypt)
+- Team model (create and join teams)
 - Contact matches through the WhatsApp / LinkedIn link on their profile
 
 ## Project Structure
 
 ```
-lomba_match/
+Tugas-Project-DDP/
 ├── README.md
 ├── requirements.txt
-├── app.py              # Flask app setup and routes
-├── models.py           # Database models: User, Skill, Competition, Team
+├── .gitignore
+├── app.py              # Streamlit app (UI and page flow)
+├── models.py           # SQLite tables and queries: User, Skill, Competition, Team
 ├── matching.py         # Matching score logic (core feature)
 ├── matching_test.py    # Tests for the scoring function
-├── templates/          # HTML pages
-├── static/             # CSS and JS
 └── data/
     └── competitions.csv  # Seed data for competitions
 ```
@@ -51,27 +57,34 @@ score = skill_overlap * 0.5 + role_fit * 0.3 + time_overlap * 0.2
 - **role_fit**: whether the user's role matches a role the team needs
 - **time_overlap**: shared availability between the user and the team
 
-Candidates are sorted by score, highest first. Weights are set at the top of
-`matching.py` and can be tuned.
+Candidates are sorted by score, highest first. Weights are set at the top of `matching.py` and can be tuned.
 
 ## Setup
 
-```bash
-git clone <repo-url>
-cd lomba_match
+```
+git clone https://github.com/bagas-alamsyah/Tugas-Project-DDP.git
+cd Tugas-Project-DDP
 python -m venv venv
 source venv/bin/activate        # Windows: venv\Scripts\activate
 pip install -r requirements.txt
 streamlit run app.py
 ```
 
-Then open http://127.0.0.1:5000
+Then open http://localhost:8501
 
 ## Running Tests
 
-```bash
+```
 python -m pytest matching_test.py
 ```
+
+## Contributing
+
+- Never push directly to `main` (except small docs fixes); work on your own branch, e.g. `feat/matching`, `feat/storage`, `feat/ui`
+- Merge into `main` through a Pull Request with at least one review
+- Commit messages start with a type: `feat:`, `fix:`, `docs:`, `chore:`
+- Follow PEP 8: `snake_case` for functions and variables, a one-line docstring for every function
+- One person per module to avoid merge conflicts
 
 ## Scope and Limitations
 
@@ -79,7 +92,7 @@ This is an end-term project MVP, so:
 
 - Competition data is loaded from a CSV, not scraped automatically
 - No in-app chat; users contact each other externally
-- Spam protection is limited to basic email validation
+- Spam protection is limited to basic validation
 - Passwords are hashed, but the app is not production-hardened
 
 ## Future Work
@@ -92,4 +105,4 @@ This is an end-term project MVP, so:
 
 ## Tech Stack
 
-Python, Streamlit, SQLite, pandas
+Python, Streamlit, SQLite, pandas, bcrypt, pytest
