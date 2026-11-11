@@ -92,4 +92,4 @@ This is an end-term project MVP, so:
 
 ## Tech Stack
 
-Python, Flask, SQLite, SQLAlchemy, HTML/CSS
+Python, Streamlib, SQLite, SQLAlchemy, HTML/CSS
