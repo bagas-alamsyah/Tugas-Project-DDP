@@ -1,5 +1,10 @@
+debug = true
+
 title = "Cari Teman Lomba"
 icon = "🏆"
 default_layout = "wide"
 default_sidebar_state = "expanded"
 
+
+[db]
+path = "app.db" 
