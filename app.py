@@ -1,12 +1,21 @@
+from pathlib import Path
+
 import streamlit as st
 import pandas as pd
 
+import tomllib
+
+BASE_DIR = Path(__file__).parent
+
+with open(BASE_DIR / 'config' / "settings.toml", "rb") as f:
+    cfg = tomllib.load(f)
+
 # 1. Konfigurasi Halaman
 st.set_page_config(
-    page_title="Cari Teman Lomba",
-    page_icon="🏆",
-    layout="wide",
-    initial_sidebar_state="expanded"
+    page_title=cfg['title'],
+    page_icon=cfg['icon'],
+    layout=cfg['default_layout'],
+    initial_sidebar_state=cfg['default_sidebar_state']
 )
 
 # 2. Inisialisasi Session State
