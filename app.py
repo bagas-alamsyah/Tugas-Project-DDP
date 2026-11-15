@@ -7,7 +7,7 @@ import tomllib
 
 BASE_DIR = Path(__file__).parent
 
-with open(BASE_DIR / 'config' / "settings.toml", "rb") as f:
+with open(BASE_DIR / "settings.toml", "rb") as f:
     cfg = tomllib.load(f)
 
 # 1. Konfigurasi Halaman
