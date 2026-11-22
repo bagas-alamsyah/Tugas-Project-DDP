@@ -280,7 +280,6 @@ class CompetitionDB(Database):
 
 # --------------------------------------------------------------------------
 # participants  (link: user <-> competition)
-# TODO(@hariszidan-ui): review class
 # --------------------------------------------------------------------------
 class ParticipantDB(Database):
     table_name = "participants"
