@@ -504,7 +504,7 @@ class SkillDB(Database):
 
 # --------------------------------------------------------------------------
 # availability  (weekly recurring slots)
-# TODO(@hariszidan-ui): review class
+# TODO(hariszidan-ui): Extensive testing on this class interaction
 # --------------------------------------------------------------------------
 class TimeAvailabilityDB(Database):
     table_name = "availabilities"
@@ -512,18 +512,91 @@ class TimeAvailabilityDB(Database):
         id         INTEGER PRIMARY KEY AUTOINCREMENT,
         user_id    INTEGER NOT NULL
                    REFERENCES users(id) ON DELETE CASCADE,
-        weekday    INTEGER NOT NULL CHECK (weekday BETWEEN 0 AND 6),
-        start_time TEXT NOT NULL,              -- 'HH:MM' 24h
-        end_time   TEXT NOT NULL,              -- 'HH:MM' 24h
+        weekday    INTEGER NOT NULL
+                   CHECK (typeof(weekday) = 'integer' AND weekday BETWEEN 0 AND 6),
+        start_time TEXT NOT NULL
+                   CHECK (start_time GLOB '[01][0-9]:[0-5][0-9]'
+                          OR start_time GLOB '2[0-3]:[0-5][0-9]'),
+        end_time   TEXT NOT NULL
+                   CHECK (end_time GLOB '[01][0-9]:[0-5][0-9]'
+                          OR end_time GLOB '2[0-3]:[0-5][0-9]'
+                          OR end_time = '24:00'),
         CHECK (end_time > start_time),
-        UNIQUE (user_id, weekday, start_time, end_time)
+        UNIQUE (user_id, weekday, start_time)
     """
-    # weekday: 0 = Monday ... 6 = Sunday
+ 
+    # Reject rows that overlap or touch another row of the same (user, weekday).
+    # add_slot() deletes those rows first, so it never trips this.
+    _TRIGGERS = (
+        """
+        CREATE TRIGGER IF NOT EXISTS availabilities_no_overlap_ins
+        BEFORE INSERT ON availabilities
+        WHEN EXISTS (
+            SELECT 1 FROM availabilities
+            WHERE user_id = NEW.user_id AND weekday = NEW.weekday
+              AND start_time <= NEW.end_time AND end_time >= NEW.start_time
+        )
+        BEGIN
+            SELECT RAISE(ABORT, 'availability overlaps or touches an existing slot');
+        END
+        """,
+        """
+        CREATE TRIGGER IF NOT EXISTS availabilities_no_overlap_upd
+        BEFORE UPDATE OF user_id, weekday, start_time, end_time ON availabilities
+        WHEN EXISTS (
+            SELECT 1 FROM availabilities
+            WHERE id != NEW.id
+              AND user_id = NEW.user_id AND weekday = NEW.weekday
+              AND start_time <= NEW.end_time AND end_time >= NEW.start_time
+        )
+        BEGIN
+            SELECT RAISE(ABORT, 'availability overlaps or touches an existing slot');
+        END
+        """,
+    )
+ 
+    def _init_db(self):
+        super()._init_db()
+        with self._connect() as conn:
+            for trigger in self._TRIGGERS:
+                conn.execute(trigger)
 
+    # Use add_slot() instead of insert() when dealing with AvailabilityDB
     def add_slot(self, user_id, weekday, start_time, end_time):
-        return self.insert(user_id=user_id, weekday=weekday,
-                           start_time=start_time, end_time=end_time)
-
+        day = int(_coerce_weekday(weekday))
+        start, end = _validate_slot(start_time, end_time)
+ 
+        with self._connect() as conn:
+            conn.execute("BEGIN IMMEDIATE")   # take the write lock before reading
+            touching = conn.execute("""
+                SELECT id, start_time, end_time FROM availabilities
+                WHERE user_id = ? AND weekday = ?
+                  AND start_time <= ? AND end_time >= ?
+            """, (user_id, day, end, start)).fetchall()
+ 
+            if touching:
+                start = min([start] + [r["start_time"] for r in touching])
+                end = max([end] + [r["end_time"] for r in touching])
+                marks = ",".join("?" * len(touching))
+                conn.execute(
+                    f"DELETE FROM availabilities WHERE id IN ({marks})",
+                    [r["id"] for r in touching],
+                )
+ 
+            cur = conn.execute(
+                "INSERT INTO availabilities "
+                "(user_id, weekday, start_time, end_time) VALUES (?, ?, ?, ?)",
+                (user_id, day, start, end),
+            )
+            return {"id": cur.lastrowid, "user_id": user_id, "weekday": day,
+                    "start_time": start, "end_time": end}
+ 
+    def clear_user(self, user_id):
+        with self._connect() as conn:
+            cur = conn.execute(
+                "DELETE FROM availabilities WHERE user_id = ?", (user_id,))
+            return cur.rowcount
+ 
     def for_user(self, user_id):
         with self._connect() as conn:
             rows = conn.execute("""
@@ -531,45 +604,58 @@ class TimeAvailabilityDB(Database):
                 WHERE user_id = ? ORDER BY weekday, start_time
             """, (user_id,)).fetchall()
         return [dict(r) for r in rows]
-
-    def clear_user(self, user_id):
+ 
+    def _load_windows(self, user_ids):
+        # {user_id: {weekday: [(start, end), ...]}}; re-merged in memory so rows
+        # written before the triggers existed still give correct results.
+        marks = ",".join("?" * len(user_ids))
         with self._connect() as conn:
-            conn.execute("DELETE FROM availabilities WHERE user_id = ?",
-                         (user_id,))
-
-    def overlap(self, user_a, user_b):
-        """Shared time windows: [(weekday, start, end), ...]."""
-        result = []
-        slots_b = self.for_user(user_b)
-        for a in self.for_user(user_a):
-            for b in slots_b:
-                if a["weekday"] != b["weekday"]:
-                    continue
-                start = max(a["start_time"], b["start_time"])
-                end = min(a["end_time"], b["end_time"])
-                if start < end:
-                    result.append((a["weekday"], start, end))
-        return sorted(result)
-
+            rows = conn.execute(
+                f"SELECT user_id, weekday, start_time, end_time "
+                f"FROM availabilities WHERE user_id IN ({marks})",
+                list(user_ids),
+            ).fetchall()
+ 
+        raw = {uid: {} for uid in user_ids}
+        for r in rows:
+            raw[r["user_id"]].setdefault(r["weekday"], []).append(
+                (r["start_time"], r["end_time"]))
+        return {
+            uid: {day: _merge_intervals(ivs) for day, ivs in days.items()}
+            for uid, days in raw.items()
+        }
+ 
     def common_overlap(self, user_ids):
-        """Windows where ALL given users are free (for whole-team matching)."""
-        user_ids = list(user_ids)
-        if not user_ids:
+        """
+        Windows where ALL users are free: [(Weekday, 'HH:MM', 'HH:MM'), ...],
+        sorted, with no duplicates. Duplicate ids are ignored, and windows that
+        only touch at an endpoint don't count. Raises TypeError if user_ids is a str.
+        """
+        if isinstance(user_ids, (str, bytes)):
+            raise TypeError("user_ids must be an iterable of user ids, not a string")
+        ids = list(dict.fromkeys(user_ids))   # dedupe, keep order
+        if not ids:
             return []
-        windows = [(s["weekday"], s["start_time"], s["end_time"])
-                   for s in self.for_user(user_ids[0])]
-        for uid in user_ids[1:]:
-            theirs = self.for_user(uid)
-            merged = []
-            for wd, st, en in windows:
-                for t in theirs:
-                    if t["weekday"] != wd:
-                        continue
-                    s, e = max(st, t["start_time"]), min(en, t["end_time"])
-                    if s < e:
-                        merged.append((wd, s, e))
-            windows = merged
-        return sorted(windows)
+ 
+        windows = self._load_windows(ids)
+        shared = windows[ids[0]]
+        for uid in ids[1:]:
+            other = windows[uid]
+            shared = {
+                day: common
+                for day in shared.keys() & other.keys()
+                if (common := _intersect(shared[day], other[day]))
+            }
+            if not shared:
+                return []
+ 
+        return [(Weekday(day), start, end)
+                for day in sorted(shared)
+                for start, end in shared[day]]
+ 
+    def overlap(self, user_a, user_b):
+        return self.common_overlap([user_a, user_b])
+ 
 
 
 # --------------------------------------------------------------------------
