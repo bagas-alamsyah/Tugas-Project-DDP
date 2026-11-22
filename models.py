@@ -660,7 +660,6 @@ class TimeAvailabilityDB(Database):
 
 # --------------------------------------------------------------------------
 # teams
-# TODO(@hariszidan-ui): review class
 # --------------------------------------------------------------------------
 class TeamDB(Database):
     table_name = "teams"
@@ -682,7 +681,6 @@ class TeamDB(Database):
 
 # --------------------------------------------------------------------------
 # team members  (link: participant <-> team)
-# TODO(@hariszidan-ui): review class
 # --------------------------------------------------------------------------
 class TeamMemberDB(Database):
     table_name = "team_members"
