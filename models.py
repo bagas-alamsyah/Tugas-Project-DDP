@@ -339,7 +339,6 @@ class ParticipantDB(Database):
 
 # --------------------------------------------------------------------------
 # skills  (what each user can do, 1-4)
-# TODO(@hariszidan-ui): review class
 # --------------------------------------------------------------------------
 class SkillDB(Database):
     table_name = "skills"
@@ -364,6 +363,19 @@ class SkillDB(Database):
             """, (user_id, skill_name.strip(), proficiency))
 
     def for_user(self, user_id):
+        """
+        Return all skills belonging to one user.
+
+        Shortcut for self.find(user_id=user_id).
+
+        Args:
+            user_id (int): id of the user in the users table.
+
+        Returns:
+            list[dict]: one dict per skill row, ordered by id, e.g.
+                [{"id": 1, "user_id": 3, "skill_name": "python", "proficiency": 3}]
+                Empty list if the user has no skills.
+        """
         return self.find(user_id=user_id)
 
     def remove_skill(self, user_id, skill_name):
