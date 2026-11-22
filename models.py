@@ -2,6 +2,10 @@ import sqlite3 as sql
 from contextlib import contextmanager
 from pathlib import Path
 
+import re
+from datetime import date
+from enum import IntEnum
+
 def _try_get_db_config(cfg) -> dict:
     accepted_acronyms = ['db', 'database']
 
@@ -19,6 +23,107 @@ def _try_get_db_config(cfg) -> dict:
 class ColumnExistError(Exception):
     pass
 
+# --------------------------------------------------------------------------
+# Weekday class | Time utils
+# --------------------------------------------------------------------------
+class Weekday(IntEnum):
+    # Monday-first, same as date.weekday(). 
+    # NOT the Sunday-first numbering; use from_sunday_zero() for those.
+    MONDAY = 0
+    TUESDAY = 1
+    WEDNESDAY = 2
+    THURSDAY = 3
+    FRIDAY = 4
+    SATURDAY = 5
+    SUNDAY = 6
+ 
+    @classmethod
+    def from_sunday_zero(cls, n: int) -> "Weekday":
+        if isinstance(n, bool) or not isinstance(n, int) or not 0 <= n <= 6:
+            raise ValueError(
+                f"Sunday-indexed weekday must be an int 0..6, got {n!r}")
+        return cls((n - 1) % 7)
+ 
+    @classmethod
+    def from_date(cls, d: date) -> "Weekday":
+        return cls(d.weekday())
+ 
+ 
+# [0-9] instead of \d (which matches non-ASCII digits); fullmatch rejects "\n".
+_TIME_RE = re.compile(r"(?:[01][0-9]|2[0-3]):[0-5][0-9]")
+END_OF_DAY = "24:00"
+
+def _coerce_weekday(value) -> Weekday:
+    """Return a Weekday; raise ValueError for non-int, bool, or out-of-range values."""
+    if isinstance(value, Weekday):
+        return value
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise TypeError(
+            f"weekday must be a Weekday or int 0 (Monday)..6 (Sunday), "
+            f"got {type(value).__name__}: {value!r}")
+    try:
+        return Weekday(value)
+    except ValueError:
+        raise ValueError(
+            f"weekday must be 0 (Monday)..6 (Sunday), got {value!r}. "
+            f"For strftime('%w') / getDay() values use Weekday.from_sunday_zero()."
+        ) from None
+    
+def _validate_time(value: str, field: str) -> str:
+    """Check a zero-padded 'HH:MM' string; '24:00' is allowed only as end_time."""
+    if not isinstance(value, str):
+        raise ValueError(
+            f"{field} must be a zero-padded 'HH:MM' string, "
+            f"got {type(value).__name__}: {value!r}")
+    if value == END_OF_DAY:
+        if field != "end_time":
+            raise ValueError(f"{field} cannot be '24:00' (only valid as end_time)")
+        return value
+    if not _TIME_RE.fullmatch(value):
+        raise ValueError(
+            f"{field} must be 'HH:MM' from '00:00' to '23:59' "
+            f"(or '24:00' for end_time), got {value!r}")
+    return value
+ 
+ 
+def _validate_slot(start_time: str, end_time: str) -> tuple[str, str]:
+    """Validate both times and that end is after start. Returns (start, end)."""
+    start = _validate_time(start_time, "start_time")
+    end = _validate_time(end_time, "end_time")
+    if end == "00:00":
+        raise ValueError("end_time '00:00' is ambiguous; use '24:00' for end-of-day")
+    if end <= start:
+        raise ValueError(
+            f"end_time ({end}) must be later than start_time ({start}); "
+            f"slots cannot cross midnight, split them across two weekdays")
+    return start, end
+ 
+ 
+def _merge_intervals(intervals):
+    """Merge overlapping or touching (start, end) pairs into sorted, disjoint ones."""
+    merged = []
+    for start, end in sorted(intervals):
+        if merged and start <= merged[-1][1]:
+            if end > merged[-1][1]:
+                merged[-1] = (merged[-1][0], end)
+        else:
+            merged.append((start, end))
+    return merged
+ 
+ 
+def _intersect(a, b):
+    out = []
+    i = j = 0
+    while i < len(a) and j < len(b):
+        start = max(a[i][0], b[j][0])
+        end = min(a[i][1], b[j][1])
+        if start < end:
+            out.append((start, end))
+        if a[i][1] < b[j][1]:
+            i += 1
+        else:
+            j += 1
+    return out
 
 # --------------------------------------------------------------------------
 # Base class
