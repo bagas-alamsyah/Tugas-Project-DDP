@@ -57,7 +57,7 @@ def set_view(target: str) -> None:
     st.rerun()
 
 
-def avatar(name: str, size: int = 44) -> str:
+def avatar(name: str, size: int = 40) -> str:
     """Return HTML squared monogram badge for a given name."""
     ch = esc((name or "?")[:1].upper())
     return f'<div class="monogram" style="--s:{size}px">{ch}</div>'
@@ -75,11 +75,10 @@ def safe_url(url: str) -> str:
     return u if u.startswith(("http://", "https://")) else f"https://{u}"
 
 
-def compute_match_breakdown(user: dict, cand: dict, comp: dict | None = None) -> dict:
-    """Compute matching score using README formula: 0.5*skill + 0.3*role + 0.2*time."""
+def compute_match_score(user: dict, cand: dict, comp: dict | None = None) -> int:
+    """Compute matching percentage using README formula: 0.5*skill + 0.3*role + 0.2*time."""
     if "match" in cand and not comp:
-        total = int(cand["match"])
-        return {"total": total, "skill": total, "role": total, "time": total}
+        return int(cand["match"])
 
     u_skills = set(user.get("skills", []))
     c_skills = set(cand.get("skills", []))
@@ -111,15 +110,10 @@ def compute_match_breakdown(user: dict, cand: dict, comp: dict | None = None) ->
         time_score = 0.5
 
     final = round((skill_score * 0.5 + role_score * 0.3 + time_score * 0.2) * 100)
-    return {
-        "total": max(1, min(99, final)),
-        "skill": round(skill_score * 100),
-        "role": round(role_score * 100),
-        "time": round(time_score * 100),
-    }
+    return max(1, min(99, final))
 
 
-# 3. Architectural CSS + Distinct Per-Page Headers (Tanpa Template Hero Seragam)
+# 3. Architectural CSS + Dynamic Full-Screen Backdrop + Clean Motion
 curr_view = st.session_state.view
 is_app = curr_view == "app"
 curr_page = st.session_state.active_page if st.session_state.active_page in PAGES else "Profil"
@@ -255,12 +249,8 @@ html(f"""<style>
 }}
 
 @keyframes staggerUp {{
-    from {{ opacity: 0; transform: translateY(16px); }}
+    from {{ opacity: 0; transform: translateY(14px); }}
     to {{ opacity: 1; transform: translateY(0); }}
-}}
-@keyframes heroPan {{
-    0% {{ transform: scale(1) translate(0, 0); }}
-    100% {{ transform: scale(1.07) translate(-1%, -1%); }}
 }}
 @keyframes barGrow {{
     from {{ width: 0%; }}
@@ -300,7 +290,7 @@ header[data-testid="stHeader"],
     max-width: 1060px !important;
     width: 100% !important;
     margin: 0 auto !important;
-    padding-top: {'1.75rem' if is_app else '2.5rem'} !important;
+    padding-top: {'2rem' if is_app else '2.5rem'} !important;
     padding-bottom: 3.5rem !important;
     animation: staggerUp .35s cubic-bezier(0.16, 1, 0.3, 1);
 }}
@@ -357,7 +347,7 @@ button.step-up:active, button.step-down:active {{
     color: #FFFFFF !important;
 }}
 
-/* Translucent Frosted Glass Cards, Forms & Interactive Glass Shimmer */
+/* Translucent Frosted Glass Cards & Forms */
 .arch-card, [data-testid="stForm"] {{
     width: 100% !important;
     background: var(--card) !important;
@@ -370,8 +360,8 @@ button.step-up:active, button.step-down:active {{
     box-shadow: 0 22px 50px rgba(0, 0, 0, 0.5) !important;
     position: relative !important;
     overflow: hidden !important;
-    animation: staggerUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.08s both;
-    transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.25s ease, box-shadow 0.25s ease !important;
+    animation: staggerUp 0.45s cubic-bezier(0.16, 1, 0.3, 1) 0.05s both;
+    transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.22s ease, box-shadow 0.22s ease !important;
 }}
 .arch-card::after {{
     content: "";
@@ -386,9 +376,9 @@ button.step-up:active, button.step-down:active {{
     transition: left 0.65s cubic-bezier(0.16, 1, 0.3, 1);
 }}
 .arch-card.hoverable:hover {{
-    transform: translateY(-4px);
+    transform: translateY(-3px);
     border-color: var(--border-strong) !important;
-    box-shadow: 0 28px 60px -12px rgba(0, 0, 0, 0.72), 0 0 24px -8px rgba(196, 154, 108, 0.25) !important;
+    box-shadow: 0 26px 55px -12px rgba(0, 0, 0, 0.72) !important;
 }}
 .arch-card.hoverable:hover::after {{
     left: 140%;
@@ -576,57 +566,7 @@ input:focus::placeholder, textarea:focus::placeholder {{
     box-shadow: 0 20px 45px -15px rgba(0, 0, 0, 0.75);
 }}
 
-/* ================= DISTINCT STRUCTURES PER PAGE (NO IDENTICAL HERO BOXES) ================= */
-
-/* 1. Halaman Profil: Integrated Cover Banner + Overlapping Avatar Sheet (Gaya Read.cv / LinkedIn) */
-.profile-sheet {{
-    width: 100%;
-    background: var(--card);
-    backdrop-filter: blur(28px) saturate(165%);
-    -webkit-backdrop-filter: blur(28px) saturate(165%);
-    border: 1px solid var(--border);
-    border-radius: 16px;
-    overflow: hidden;
-    margin-bottom: 20px;
-    box-shadow: 0 24px 55px rgba(0, 0, 0, 0.55);
-    animation: staggerUp 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
-}}
-.profile-cover {{
-    height: 118px;
-    position: relative;
-    overflow: hidden;
-    border-bottom: 1px solid var(--border);
-}}
-.profile-cover-bg {{
-    position: absolute;
-    inset: 0;
-    background-size: cover;
-    background-position: center;
-    animation: heroPan 18s ease-in-out infinite alternate;
-}}
-.profile-body {{
-    padding: 0 28px 24px;
-    position: relative;
-}}
-.profile-avatar-frame {{
-    margin-top: -34px;
-    margin-bottom: 12px;
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-end;
-    flex-wrap: wrap;
-    gap: 14px;
-}}
-.profile-meta-row {{
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 14px;
-    margin-top: 18px;
-    padding-top: 18px;
-    border-top: 1px solid var(--border);
-}}
-
-/* 2. Halaman Kompetisi: Split Catalog Header */
+/* Clean Editorial Header (Digunakan Konsisten di Semua Halaman Stage 3) */
 .catalog-header {{
     display: flex;
     justify-content: space-between;
@@ -634,47 +574,17 @@ input:focus::placeholder, textarea:focus::placeholder {{
     flex-wrap: wrap;
     gap: 16px;
     padding-bottom: 16px;
-    margin-bottom: 18px;
+    margin-bottom: 20px;
     border-bottom: 1px solid var(--border);
-    animation: staggerUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+    animation: staggerUp 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
 }}
-
-/* 3. Halaman Rekomendasi: Functional Workbench Header + Unified Matrix Strip */
-.workbench-bar {{
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 16px;
-    background: var(--card);
-    backdrop-filter: blur(26px);
-    border: 1px solid var(--border);
-    border-left: 4px solid var(--brown-light);
-    border-radius: 12px;
-    padding: 18px 24px;
-    margin-bottom: 18px;
-    animation: staggerUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
-}}
-.formula-chip {{
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    background: rgba(255, 255, 255, 0.04);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 6px 12px;
-    font-size: 11.5px;
-    color: var(--muted);
-}}
-.formula-chip b {{ color: var(--brown-light); }}
 
 /* Squared Monogram & Rectangular Tags */
 .monogram {{
-    flex: none; width: var(--s); height: var(--s); border-radius: 10px;
-    background: #1C1613; border: 2px solid var(--brown-light);
+    flex: none; width: var(--s); height: var(--s); border-radius: 8px;
+    background: var(--brown-soft); border: 1px solid var(--brown-light);
     display: flex; align-items: center; justify-content: center;
     color: var(--brown-light); font-weight: 800; font-size: calc(var(--s) * 0.42);
-    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.6);
 }}
 .rect-tag {{
     display: inline-block; background: var(--brown-soft);
@@ -691,42 +601,12 @@ input:focus::placeholder, textarea:focus::placeholder {{
     background: rgba(255, 255, 255, 0.04); border-color: var(--border); color: var(--muted);
 }}
 
-/* Full-Width Horizontal Summary Strips */
-.exec-strip {{
-    width: 100%; box-sizing: border-box;
-    display: grid; grid-template-columns: repeat(3, 1fr);
-    background: var(--card);
-    backdrop-filter: blur(26px) saturate(165%);
-    -webkit-backdrop-filter: blur(26px) saturate(165%);
-    border: 1px solid var(--border);
-    border-radius: 14px; margin: 4px 0 20px 0; overflow: hidden;
-    box-shadow: 0 18px 45px rgba(0, 0, 0, 0.45);
-    animation: staggerUp 0.48s cubic-bezier(0.16, 1, 0.3, 1) 0.05s both;
-}}
-.exec-cell {{
-    padding: 16px 22px; border-right: 1px solid var(--border);
-    transition: background 0.2s ease;
-}}
-.exec-cell:hover {{ background: rgba(196, 154, 108, 0.06); }}
-.exec-cell:last-child {{ border-right: none; }}
-.exec-lbl {{ font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .1em; color: var(--brown-light); }}
-.exec-val {{ font-size: 19px; font-weight: 800; color: #FFFFFF; letter-spacing: -0.02em; margin-top: 4px; }}
-.exec-sub {{ font-size: 12px; color: var(--muted); margin-top: 2px; }}
-
-.bar-track {{ height: 5px; border-radius: 3px; background: rgba(255,255,255,.10); overflow: hidden; margin: 12px 0; }}
+.bar-track {{ height: 4px; border-radius: 2px; background: rgba(255,255,255,.10); overflow: hidden; margin: 12px 0; }}
 .bar-fill {{
     display: block; height: 100%;
     background: linear-gradient(90deg, #8B5E3C, #D4A373);
     animation: barGrow 0.85s cubic-bezier(0.16, 1, 0.3, 1) both;
 }}
-.score-table {{
-    display: grid; grid-template-columns: repeat(3, 1fr);
-    border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);
-    padding: 10px 0; margin: 12px 0; text-align: left;
-}}
-.score-col {{ border-right: 1px solid var(--border); padding-left: 10px; }}
-.score-col:first-child {{ padding-left: 0; }}
-.score-col:last-child {{ border-right: none; }}
 </style>""")
 
 # ==============================================================================
@@ -828,7 +708,7 @@ elif curr_view == "signup":
         with st.form("signup_form"):
             html("""
                 <div style="margin-bottom:14px;">
-                    <div style="font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);color:var(--brown-light);margin-bottom:4px;">Registrasi Peserta</div>
+                    <div style="font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--brown-light);margin-bottom:4px;">Registrasi Peserta</div>
                     <div style="font-size:26px;font-weight:800;letter-spacing:-0.03em;color:#fff;">Sign Up</div>
                     <div style="font-size:13px;color:var(--muted);margin-top:4px;">Buat akun baru untuk mulai mencari rekan tim lomba.</div>
                 </div>
@@ -855,7 +735,7 @@ elif curr_view == "signup":
             set_view("login")
 
 # ==============================================================================
-# STAGE 3: MAIN WEBSITE DENGAN STRUKTUR BERBEDA TIAP HALAMAN (Tanpa Template Hero Seragam)
+# STAGE 3: MAIN WEBSITE
 # ==============================================================================
 else:
     prof = st.session_state.user_profile
@@ -885,88 +765,43 @@ else:
             set_view("landing")
 
     # --------------------------------------------------------------------------
-    # HALAMAN 1: PROFIL (Integrated Cover Sheet ala Read.cv / LinkedIn, Tanpa Hero Terpisah)
+    # HALAMAN 1: PROFIL (Clean Header + Form 2 Kolom + Kartu Identitas Ringkas)
     # --------------------------------------------------------------------------
     if page == "Profil":
-        fields = ("name", "campus", "major", "role", "skills", "availability", "contact", "portfolio")
-        filled = sum(bool(prof.get(k)) for k in fields)
-        pct_filled = int(filled / len(fields) * 100)
-
-        skills_html = badges(prof["skills"]) if prof["skills"] else '<span style="font-size:12.5px;color:var(--subtle)">Belum ada keahlian dipilih</span>'
-        weight_val = int(LEVEL_WEIGHTS.get(prof["level"], 0.8) * 100)
-        links_list = []
-        if prof.get("contact"):
-            links_list.append(f'<a class="action-link" style="height:34px !important;font-size:12px !important;" href="{esc(safe_url(prof["contact"]))}" target="_blank">WhatsApp / LinkedIn ↗</a>')
-        if prof.get("portfolio"):
-            links_list.append(f'<a class="action-link secondary" style="height:34px !important;font-size:12px !important;" href="{esc(safe_url(prof["portfolio"]))}" target="_blank">Portofolio / GitHub ↗</a>')
-        links_html = f'<div style="display:flex;gap:10px;">{"".join(links_list)}</div>' if links_list else ""
-
+        status_label = "Profil Aktif" if (prof["name"] and prof["skills"]) else "Belum Lengkap"
         html(f"""
-            <div class="profile-sheet">
-                <div class="profile-cover">
-                    <div class="profile-cover-bg" style="background-image: linear-gradient(90deg, rgba(10,8,7,.78) 0%, rgba(18,14,11,.42) 60%, rgba(10,8,7,.72) 100%), url('{BG_PHOTOS['Profil']}');"></div>
-                    <div style="position:relative;z-index:1;display:flex;justify-content:space-between;align-items:center;padding:18px 28px;">
-                        <span style="font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--brown-light);">Portofolio Kolaborator</span>
-                        <span style="font-size:11.5px;font-weight:700;color:#fff;background:rgba(14,11,9,.75);border:1px solid var(--border);padding:4px 12px;border-radius:6px;">
-                            Kelengkapan Profil · {pct_filled}%
-                        </span>
-                    </div>
+            <div class="catalog-header">
+                <div>
+                    <div style="font-size:28px;font-weight:800;letter-spacing:-0.03em;color:#fff;line-height:1.1;">Profil Kolaborator</div>
+                    <div style="font-size:13.5px;color:var(--muted);margin-top:6px;">Atur data akademik, peran utama, dan keahlian untuk pencocokan rekan tim.</div>
                 </div>
-                <div class="profile-body">
-                    <div class="profile-avatar-frame">
-                        <div style="display:flex;align-items:flex-end;gap:18px;flex-wrap:wrap;">
-                            {avatar(prof['name'] or '?', 68)}
-                            <div style="padding-bottom:2px;">
-                                <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-                                    <span style="font-size:24px;font-weight:800;letter-spacing:-0.03em;color:#fff;">{esc(prof['name'] or 'Nama Belum Diisi')}</span>
-                                    <span class="rect-tag" style="margin:0">{esc(prof.get('role', 'Kolaborator'))}</span>
-                                </div>
-                                <div style="font-size:13.5px;color:var(--muted);margin-top:4px;">
-                                    {esc(prof['major'] or 'Program Studi')} &nbsp;·&nbsp; {esc(prof['campus'] or 'Universitas')} &nbsp;·&nbsp; Angkatan {prof['year']}
-                                </div>
-                            </div>
-                        </div>
-                        {links_html}
-                    </div>
-                    <div class="profile-meta-row">
-                        <div>
-                            <div style="font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--brown-light);">Tingkat Pengalaman</div>
-                            <div style="font-size:15px;font-weight:700;color:#fff;margin-top:4px;">{esc(prof['level'])} ({weight_val}% bobot)</div>
-                        </div>
-                        <div>
-                            <div style="font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--brown-light);">Ketersediaan Jadwal</div>
-                            <div style="font-size:15px;font-weight:700;color:#fff;margin-top:4px;">{esc(prof['availability'] or 'Fleksibel')}</div>
-                        </div>
-                        <div>
-                            <div style="font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--brown-light);margin-bottom:6px;">Keahlian Utama ({len(prof['skills'])})</div>
-                            <div>{skills_html}</div>
-                        </div>
-                    </div>
+                <div style="font-size:13px;font-weight:700;color:var(--brown-light);background:var(--card);border:1px solid var(--border);padding:8px 16px;border-radius:8px;">
+                    {status_label}
                 </div>
             </div>
         """)
 
         with st.form("profile_form"):
-            st.markdown("#### Edit Informasi Akademik & Keahlian")
+            st.markdown("#### Informasi Akademik & Keahlian")
             col_l, col_r = st.columns(2, gap="medium")
             with col_l:
                 name = st.text_input("Nama Lengkap *", value=prof["name"], placeholder="Farraj Bagas")
                 curr_role = prof.get("role", ROLE_OPTS[0])
-                role = st.selectbox("Peran Utama dalam Tim (Role) *", ROLE_OPTS, index=ROLE_OPTS.index(curr_role) if curr_role in ROLE_OPTS else 0)
+                role = st.selectbox("Peran Utama dalam Tim *", ROLE_OPTS, index=ROLE_OPTS.index(curr_role) if curr_role in ROLE_OPTS else 0)
                 campus = st.text_input("Universitas / Institusi", value=prof["campus"], placeholder="Universitas Indonesia")
                 c_maj, c_yr = st.columns([1.4, 0.8], gap="small")
                 major = c_maj.text_input("Program Studi", value=prof["major"], placeholder="Ilmu Komputer")
                 year = c_yr.number_input("Angkatan", 2015, 2030, prof["year"])
             with col_r:
-                skills = st.multiselect("Keahlian Utama (Skills) *", SKILL_OPTS, default=prof["skills"])
+                skills = st.multiselect("Keahlian Utama *", SKILL_OPTS, default=prof["skills"])
                 curr_lvl = prof.get("level", "Menengah")
-                level = st.selectbox("Tingkat Pengalaman (Bobot Skill)", LEVEL_OPTS, index=LEVEL_OPTS.index(curr_lvl) if curr_lvl in LEVEL_OPTS else 1)
-                avail = st.text_input("Ketersediaan Waktu (Availability)", value=prof["availability"], placeholder="Weekday malam & weekend penuh")
+                level = st.selectbox("Tingkat Pengalaman", LEVEL_OPTS, index=LEVEL_OPTS.index(curr_lvl) if curr_lvl in LEVEL_OPTS else 1)
+                avail = st.text_input("Ketersediaan Waktu", value=prof["availability"], placeholder="Weekday malam & weekend penuh")
                 c_wa, c_pf = st.columns(2, gap="small")
                 contact = c_wa.text_input("Kontak WhatsApp / LinkedIn", value=prof.get("contact", ""), placeholder="wa.me/62812...")
                 portfolio = c_pf.text_input("Portofolio / GitHub", value=prof["portfolio"], placeholder="github.com/username")
 
-            if st.form_submit_button("Simpan Perubahan Profil", width="stretch", type="primary"):
+            if st.form_submit_button("Simpan Profil", width="stretch", type="primary"):
                 if not name.strip() or not skills:
                     st.error("Nama lengkap dan minimal 1 keahlian wajib diisi.")
                 else:
@@ -978,8 +813,34 @@ else:
                     st.toast("Profil berhasil disimpan.")
                     st.rerun()
 
+        if prof["name"] and prof["skills"]:
+            st.write("")
+            links_list = []
+            if prof.get("contact"):
+                links_list.append(f'<a class="action-link" style="height:34px !important;font-size:12px !important;" href="{esc(safe_url(prof["contact"]))}" target="_blank">WhatsApp / LinkedIn ↗</a>')
+            if prof.get("portfolio"):
+                links_list.append(f'<a class="action-link secondary" style="height:34px !important;font-size:12px !important;" href="{esc(safe_url(prof["portfolio"]))}" target="_blank">Portofolio ↗</a>')
+            links_html = f'<div style="display:flex;gap:8px;">{"".join(links_list)}</div>' if links_list else ""
+
+            html(f"""
+                <div class="arch-card hoverable">
+                    <div style="display:flex;justify-content:space-between;align-items:center;padding-bottom:12px;margin-bottom:12px;border-bottom:1px solid var(--border);flex-wrap:wrap;gap:10px;">
+                        <span class="rect-tag" style="margin:0">{esc(prof.get('role', 'Kolaborator'))}</span>
+                        <span style="font-size:12px;color:var(--muted);font-weight:600;">Level: <b style="color:#fff">{esc(prof['level'])}</b> &nbsp;|&nbsp; Jadwal: <b style="color:#fff">{esc(prof['availability'] or 'Fleksibel')}</b></span>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:14px;">
+                        <div>
+                            <div style="font-size:20px;font-weight:800;letter-spacing:-0.025em;color:#fff;margin-bottom:4px;">{esc(prof['name'])}</div>
+                            <div style="font-size:12.5px;color:var(--muted);margin-bottom:12px;">{esc(prof['major'] or 'Program Studi')} · {esc(prof['campus'] or 'Universitas')} ({prof['year']})</div>
+                            <div>{badges(prof['skills'], muted=True)}</div>
+                        </div>
+                        {links_html}
+                    </div>
+                </div>
+            """)
+
     # --------------------------------------------------------------------------
-    # HALAMAN 2: KOMPETISI (Editorial Catalog Top Bar + Search & Filter Deck)
+    # HALAMAN 2: KOMPETISI
     # --------------------------------------------------------------------------
     elif page == "Kompetisi":
         comps = st.session_state.competitions
@@ -1073,7 +934,7 @@ else:
                         st.rerun()
 
     # --------------------------------------------------------------------------
-    # HALAMAN 3: REKOMENDASI (Direct Matchmaking Workbench, Tanpa Hero Banner Gimmick)
+    # HALAMAN 3: REKOMENDASI (Clean Header + 1-Line Toolbar + Kartu Rapi Selevel Kompetisi)
     # --------------------------------------------------------------------------
     elif page == "Rekomendasi":
         candidates = st.session_state.candidates
@@ -1082,132 +943,78 @@ else:
         if st.session_state.selected_comp not in comp_titles:
             st.session_state.selected_comp = "Semua Kompetisi"
 
-        html("""
-            <div class="workbench-bar">
+        html(f"""
+            <div class="catalog-header">
                 <div>
-                    <div style="font-size:24px;font-weight:800;letter-spacing:-0.03em;color:#fff;">Rekomendasi Rekan Tim</div>
-                    <div style="font-size:13px;color:var(--muted);margin-top:3px;">Peringkat kandidat diurutkan dari skor kecocokan tertinggi untuk kompetisi pilihanmu.</div>
+                    <div style="font-size:28px;font-weight:800;letter-spacing:-0.03em;color:#fff;line-height:1.1;">Rekomendasi Rekan Tim</div>
+                    <div style="font-size:13.5px;color:var(--muted);margin-top:6px;">Daftar kandidat rekan kolaborasi berdasarkan kesesuaian keahlian, peran, dan ketersediaan jadwal.</div>
                 </div>
-                <div style="display:flex;gap:8px;flex-wrap:wrap;">
-                    <span class="formula-chip">Skill Overlap <b>50%</b></span>
-                    <span class="formula-chip">Role Fit <b>30%</b></span>
-                    <span class="formula-chip">Time Overlap <b>20%</b></span>
+                <div style="font-size:13px;font-weight:700;color:var(--brown-light);background:var(--card);border:1px solid var(--border);padding:8px 16px;border-radius:8px;">
+                    {len(candidates)} Kandidat Tersedia
                 </div>
             </div>
         """)
 
+        c1, c2, c3 = st.columns([2.2, 1, 1], gap="small")
+        q_cand = c1.text_input("Cari Kandidat", placeholder="Cari nama, universitas, atau keahlian kandidat...", label_visibility="collapsed").strip().lower()
+        sel_title = c2.selectbox("Target Kompetisi", comp_titles, index=comp_titles.index(st.session_state.selected_comp), label_visibility="collapsed")
+        st.session_state.selected_comp = sel_title
+        role_filter = c3.selectbox("Filter Peran", ["Semua Peran", *ROLE_OPTS], label_visibility="collapsed")
+
         if not prof["name"] or not prof["skills"]:
             html("""
-                <div class="arch-card" style="text-align:center;padding:48px 28px !important;">
-                    <div style="font-size:19px;font-weight:800;letter-spacing:-0.02em;color:#fff;margin-bottom:6px;">Profil & Keahlian Belum Lengkap</div>
+                <div class="arch-card" style="text-align:center;padding:48px 28px !important;margin-top:8px;">
+                    <div style="font-size:18px;font-weight:800;letter-spacing:-0.02em;color:#fff;margin-bottom:6px;">Profil & Keahlian Belum Lengkap</div>
                     <div style="font-size:13.5px;color:var(--muted);max-width:46ch;margin:0 auto;line-height:1.55;">
-                        Pilih minimal 1 keahlian utama pada halaman <b>Profil</b> agar sistem dapat menghitung matriks kecocokan kandidat.
+                        Lengkapi nama dan minimal 1 keahlian pada halaman <b>Profil</b> terlebih dahulu untuk melihat peringkat kecocokan kandidat.
                     </div>
                 </div>
             """)
         else:
-            f_col1, f_col2 = st.columns([1.4, 1], gap="medium")
-            with f_col1:
-                sel_title = st.selectbox(
-                    "Target Kompetisi",
-                    comp_titles,
-                    index=comp_titles.index(st.session_state.selected_comp),
-                )
-                st.session_state.selected_comp = sel_title
-            with f_col2:
-                role_filter = st.selectbox("Filter Peran Kandidat", ["Semua Peran", *ROLE_OPTS])
-
             active_comp = next((c for c in comps if c["title"] == sel_title), None)
-
-            html(f"""
-                <div class="exec-strip">
-                    <div class="exec-cell">
-                        <div class="exec-lbl">Profil Aktif Kamu</div>
-                        <div class="exec-val">{esc(prof.get('role', '-'))}</div>
-                        <div class="exec-sub">{len(prof['skills'])} Keahlian · Level {esc(prof['level'])}</div>
-                    </div>
-                    <div class="exec-cell">
-                        <div class="exec-lbl">Target Pencocokan</div>
-                        <div class="exec-val" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{esc(sel_title)}</div>
-                        <div class="exec-sub">{'Prioritas peran sesuai kebutuhan lomba' if active_comp else 'Pencocokan lintas peran komplementer'}</div>
-                    </div>
-                    <div class="exec-cell">
-                        <div class="exec-lbl">Kandidat Tersedia</div>
-                        <div class="exec-val">{len(candidates)} Peserta</div>
-                        <div class="exec-sub">Diurutkan dari skor tertinggi</div>
-                    </div>
-                </div>
-            """)
-
             scored_list = []
             for c in candidates:
                 if role_filter != "Semua Peran" and c.get("role") and c.get("role") != role_filter:
                     continue
-                scores = compute_match_breakdown(prof, c, active_comp)
-                scored_list.append((c, scores))
-            scored_list.sort(key=lambda item: item[1]["total"], reverse=True)
+                haystack = f"{c['name']} {c['campus']} {c['major']} {' '.join(c['skills'])}".lower()
+                if q_cand and q_cand not in haystack:
+                    continue
+                score = compute_match_score(prof, c, active_comp)
+                scored_list.append((c, score))
+            scored_list.sort(key=lambda item: item[1], reverse=True)
 
             if not scored_list:
                 html("""
-                    <div class="arch-card" style="text-align:center;padding:48px 28px !important;">
-                        <div style="font-size:18px;font-weight:800;letter-spacing:-0.02em;color:#fff;margin-bottom:6px;">Belum Ada Data Kandidat</div>
-                        <div style="font-size:13.5px;color:var(--muted);max-width:44ch;margin:0 auto;line-height:1.55;">
-                            Daftar rekomendasi rekan tim akan otomatis diurutkan dari skor tertinggi saat data kandidat tersedia di database.
+                    <div class="arch-card" style="text-align:center;padding:48px 28px !important;margin-top:8px;">
+                        <div style="font-size:18px;font-weight:800;letter-spacing:-0.02em;color:#fff;margin-bottom:6px;">Belum Ada Kandidat yang Sesuai</div>
+                        <div style="font-size:13.5px;color:var(--muted);max-width:46ch;margin:0 auto;line-height:1.55;">
+                            Daftar rekomendasi rekan tim akan otomatis tampil di sini saat data peserta telah tersedia.
                         </div>
                     </div>
                 """)
             else:
-                tab_cards, tab_table = st.tabs(["Matriks Kartu Kandidat", "Tabel Perbandingan"])
-                with tab_cards:
-                    cols = st.columns(3, gap="medium")
-                    for i, (c, sc) in enumerate(scored_list):
-                        avail_txt = c.get("availability") or c.get("avail", "Fleksibel")
-                        c_role = c.get("role", "Kolaborator")
-                        contact_btn = f'<a class="action-link" style="width:100%;margin-top:14px;" href="{esc(safe_url(c["contact"]))}" target="_blank">Hubungi {esc(c["name"].split()[0])} ↗</a>' if c.get("contact") else ""
-                        with cols[i % 3]:
-                            html(f"""
-                                <div class="arch-card hoverable" style="margin-bottom:14px;">
-                                    <div style="display:flex;justify-content:space-between;align-items:flex-start;">
-                                        <div style="display:flex;align-items:center;gap:12px;">
-                                            {avatar(c['name'], 40)}
-                                            <div>
-                                                <div style="font-size:16px;font-weight:800;color:#fff;letter-spacing:-0.02em">{esc(c['name'])}</div>
-                                                <div style="font-size:12px;color:var(--muted)">{esc(c_role)}</div>
-                                            </div>
-                                        </div>
-                                        <div style="text-align:right">
-                                            <div style="font-size:18px;font-weight:800;color:var(--brown-light);line-height:1">{sc['total']}%</div>
-                                            <div style="font-size:10px;color:var(--muted);letter-spacing:.06em;margin-top:2px">MATCH</div>
-                                        </div>
-                                    </div>
-                                    <div class="bar-track"><span class="bar-fill" style="width:{sc['total']}%"></span></div>
-                                    <div class="score-table">
-                                        <div class="score-col"><div style="font-size:10px;color:var(--muted)">SKILL (50%)</div><div style="font-size:12.5px;font-weight:700;color:#fff;margin-top:2px">{sc['skill']}%</div></div>
-                                        <div class="score-col"><div style="font-size:10px;color:var(--muted)">ROLE (30%)</div><div style="font-size:12.5px;font-weight:700;color:#fff;margin-top:2px">{sc['role']}%</div></div>
-                                        <div class="score-col"><div style="font-size:10px;color:var(--muted)">TIME (20%)</div><div style="font-size:12.5px;font-weight:700;color:#fff;margin-top:2px">{sc['time']}%</div></div>
-                                    </div>
-                                    <div style="font-size:12px;color:var(--muted);margin-bottom:10px;">{esc(c['campus'])} · {esc(c['major'])} · {esc(avail_txt)}</div>
-                                    <div>{badges(c['skills'])}</div>
-                                    {contact_btn}
+                cols = st.columns(2, gap="medium")
+                for i, (c, score) in enumerate(scored_list):
+                    avail_txt = c.get("availability") or c.get("avail", "Fleksibel")
+                    c_role = c.get("role", "Kolaborator")
+                    contact_btn = f'<a class="action-link secondary" style="width:100%;margin-top:12px;" href="{esc(safe_url(c["contact"]))}" target="_blank">Hubungi {esc(c["name"].split()[0])} ↗</a>' if c.get("contact") else ""
+                    with cols[i % 2]:
+                        html(f"""
+                            <div class="arch-card hoverable" style="margin-bottom:12px;">
+                                <div style="display:flex;justify-content:space-between;align-items:center;padding-bottom:12px;margin-bottom:12px;border-bottom:1px solid var(--border);">
+                                    <span class="rect-tag" style="margin:0">{esc(c_role)}</span>
+                                    <span style="font-size:12.5px;color:var(--muted);font-weight:600;">Kecocokan: <b style="color:var(--brown-light)">{score}%</b></span>
                                 </div>
-                            """)
-
-                with tab_table:
-                    df = pd.DataFrame([{
-                        "Nama": c["name"],
-                        "Peran": c.get("role", "-"),
-                        "Universitas": c["campus"],
-                        "Keahlian": ", ".join(c["skills"]),
-                        "Skor Total": sc["total"] / 100,
-                        "Kontak": safe_url(c["contact"]) if c.get("contact") else ""
-                    } for c, sc in scored_list])
-                    st.dataframe(df, width="stretch", hide_index=True, column_config={
-                        "Skor Total": st.column_config.ProgressColumn("Skor Kecocokan", format="%.0f%%", min_value=0, max_value=1),
-                        "Kontak": st.column_config.LinkColumn("WhatsApp / LinkedIn")
-                    })
+                                <div style="font-size:20px;font-weight:800;letter-spacing:-0.025em;color:#fff;margin-bottom:4px;">{esc(c['name'])}</div>
+                                <div style="font-size:12.5px;color:var(--muted);margin-bottom:14px;">{esc(c['major'])} · {esc(c['campus'])} &nbsp;|&nbsp; Jadwal: {esc(avail_txt)}</div>
+                                <div style="font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--brown-light);margin-bottom:6px;">Keahlian</div>
+                                <div>{badges(c['skills'], muted=True)}</div>
+                                {contact_btn}
+                            </div>
+                        """)
 
     # --------------------------------------------------------------------------
-    # HALAMAN 4: TIM SAYA (Recruitment Board Header + Creation Form & Active Teams)
+    # HALAMAN 4: TIM SAYA
     # --------------------------------------------------------------------------
     else:
         teams = st.session_state.teams
