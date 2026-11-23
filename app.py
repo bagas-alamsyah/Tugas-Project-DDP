@@ -119,32 +119,7 @@ def compute_match_breakdown(user: dict, cand: dict, comp: dict | None = None) ->
     }
 
 
-def page_hero(eyebrow: str, title: str, subtitle: str, photo_url: str, meta_label: str = "", meta_val: str = "", bar_pct: int | None = None) -> None:
-    """Render full-width architectural hero banner with animated Ken Burns photo layer."""
-    bar_html = f'<div class="bar-track" style="margin:8px 0 0;height:4px;"><span class="bar-fill" style="width:{bar_pct}%"></span></div>' if bar_pct is not None else ""
-    meta_html = f"""
-        <div class="hero-stat-box">
-            <div class="hero-stat-lbl">{esc(meta_label)}</div>
-            <div class="hero-stat-val">{esc(meta_val)}</div>
-            {bar_html}
-        </div>
-    """ if meta_val else ""
-    html(f"""
-        <div class="arch-hero">
-            <div class="hero-bg-layer" style="background-image: linear-gradient(90deg, rgba(10,8,7,.90) 0%, rgba(14,11,9,.64) 52%, rgba(16,12,10,.30) 100%), url('{photo_url}');"></div>
-            <div class="hero-inner">
-                <div>
-                    <div class="hero-eyebrow">{esc(eyebrow)}</div>
-                    <div class="hero-h1">{esc(title)}</div>
-                    <div class="hero-p">{esc(subtitle)}</div>
-                </div>
-                {meta_html}
-            </div>
-        </div>
-    """)
-
-
-# 3. Architectural CSS + Dynamic Full-Screen Backdrop + Rich Motion System
+# 3. Architectural CSS + Distinct Per-Page Headers (Tanpa Template Hero Seragam)
 curr_view = st.session_state.view
 is_app = curr_view == "app"
 curr_page = st.session_state.active_page if st.session_state.active_page in PAGES else "Profil"
@@ -176,7 +151,6 @@ bg_css = f"""
 """
 
 sidebar_dock_css = """
-/* Mac-Style Auto-Pop-Up Floating Left Dock dengan Penanda Tab "MENU" Beranimasi */
 section[data-testid="stSidebar"] {
     display: block !important;
     position: fixed !important;
@@ -188,7 +162,7 @@ section[data-testid="stSidebar"] {
     max-width: 244px !important;
     height: auto !important;
     max-height: 86vh !important;
-    background: rgba(18, 14, 12, 0.90) !important;
+    background: rgba(18, 14, 12, 0.92) !important;
     backdrop-filter: blur(32px) saturate(180%) !important;
     -webkit-backdrop-filter: blur(32px) saturate(180%) !important;
     border: 1px solid rgba(196, 154, 108, 0.36) !important;
@@ -266,9 +240,9 @@ html(f"""<style>
     color-scheme: dark;
     --primary-color: #8B5E3C !important;
     --bg: #0A0908;
-    --card: rgba(20, 16, 14, 0.74);
-    --surface: rgba(24, 20, 17, 0.78);
-    --surface-2: rgba(36, 30, 25, 0.85);
+    --card: rgba(20, 16, 14, 0.76);
+    --surface: rgba(24, 20, 17, 0.80);
+    --surface-2: rgba(36, 30, 25, 0.88);
     --brown: #8B5E3C;
     --brown-dark: #6F4E37;
     --brown-light: #C49A6C;
@@ -280,14 +254,13 @@ html(f"""<style>
     --subtle: #7A7168;
 }}
 
-/* Keyframe Animations */
 @keyframes staggerUp {{
-    from {{ opacity: 0; transform: translateY(18px) scale(0.99); }}
-    to {{ opacity: 1; transform: translateY(0) scale(1); }}
+    from {{ opacity: 0; transform: translateY(16px); }}
+    to {{ opacity: 1; transform: translateY(0); }}
 }}
 @keyframes heroPan {{
     0% {{ transform: scale(1) translate(0, 0); }}
-    100% {{ transform: scale(1.08) translate(-1.2%, -1%); }}
+    100% {{ transform: scale(1.07) translate(-1%, -1%); }}
 }}
 @keyframes barGrow {{
     from {{ width: 0%; }}
@@ -327,9 +300,9 @@ header[data-testid="stHeader"],
     max-width: 1060px !important;
     width: 100% !important;
     margin: 0 auto !important;
-    padding-top: {'1.8rem' if is_app else '2.5rem'} !important;
+    padding-top: {'1.75rem' if is_app else '2.5rem'} !important;
     padding-bottom: 3.5rem !important;
-    animation: staggerUp .38s cubic-bezier(0.16, 1, 0.3, 1);
+    animation: staggerUp .35s cubic-bezier(0.16, 1, 0.3, 1);
 }}
 div.stMarkdown,
 .stMarkdown,
@@ -397,10 +370,9 @@ button.step-up:active, button.step-down:active {{
     box-shadow: 0 22px 50px rgba(0, 0, 0, 0.5) !important;
     position: relative !important;
     overflow: hidden !important;
-    animation: staggerUp 0.55s cubic-bezier(0.16, 1, 0.3, 1) 0.12s both;
+    animation: staggerUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.08s both;
     transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.25s ease, box-shadow 0.25s ease !important;
 }}
-/* Efek Kilau Kaca Diagonal (Glass Sheen) saat Kartu di-Hover */
 .arch-card::after {{
     content: "";
     position: absolute;
@@ -408,21 +380,21 @@ button.step-up:active, button.step-down:active {{
     left: -120%;
     width: 75%;
     height: 100%;
-    background: linear-gradient(115deg, transparent 20%, rgba(212, 163, 115, 0.12) 50%, transparent 80%);
+    background: linear-gradient(115deg, transparent 20%, rgba(212, 163, 115, 0.11) 50%, transparent 80%);
     transform: skewX(-20deg);
     pointer-events: none;
     transition: left 0.65s cubic-bezier(0.16, 1, 0.3, 1);
 }}
-.arch-card:hover {{
+.arch-card.hoverable:hover {{
     transform: translateY(-4px);
     border-color: var(--border-strong) !important;
     box-shadow: 0 28px 60px -12px rgba(0, 0, 0, 0.72), 0 0 24px -8px rgba(196, 154, 108, 0.25) !important;
 }}
-.arch-card:hover::after {{
+.arch-card.hoverable:hover::after {{
     left: 140%;
 }}
 
-/* Inputs & Posisi "Press Enter to submit form" */
+/* Inputs & Placeholder Behavior */
 [data-testid="stTextInputRootElement"],
 [data-baseweb="input"],
 [data-baseweb="base-input"],
@@ -489,7 +461,7 @@ input:focus::placeholder, textarea:focus::placeholder {{
     opacity: 0 !important;
 }}
 
-/* Professional Buttons dengan Animasi Hover & Tekan */
+/* Buttons */
 .stButton > button, .stFormSubmitButton > button, .action-link {{
     border-radius: 8px !important;
     font-weight: 600 !important;
@@ -604,61 +576,105 @@ input:focus::placeholder, textarea:focus::placeholder {{
     box-shadow: 0 20px 45px -15px rgba(0, 0, 0, 0.75);
 }}
 
-/* Editorial Photographic Hero inside App dengan Ken Burns Slow Pan */
-.arch-hero {{
+/* ================= DISTINCT STRUCTURES PER PAGE (NO IDENTICAL HERO BOXES) ================= */
+
+/* 1. Halaman Profil: Integrated Cover Banner + Overlapping Avatar Sheet (Gaya Read.cv / LinkedIn) */
+.profile-sheet {{
     width: 100%;
-    box-sizing: border-box;
-    border-radius: 14px;
+    background: var(--card);
+    backdrop-filter: blur(28px) saturate(165%);
+    -webkit-backdrop-filter: blur(28px) saturate(165%);
     border: 1px solid var(--border);
-    padding: 34px 36px;
-    margin: 0 0 20px 0;
-    position: relative;
+    border-radius: 16px;
     overflow: hidden;
-    box-shadow: 0 24px 55px -18px rgba(0, 0, 0, 0.75);
+    margin-bottom: 20px;
+    box-shadow: 0 24px 55px rgba(0, 0, 0, 0.55);
     animation: staggerUp 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
 }}
-.hero-bg-layer {{
+.profile-cover {{
+    height: 118px;
+    position: relative;
+    overflow: hidden;
+    border-bottom: 1px solid var(--border);
+}}
+.profile-cover-bg {{
     position: absolute;
     inset: 0;
     background-size: cover;
     background-position: center;
-    z-index: 0;
     animation: heroPan 18s ease-in-out infinite alternate;
 }}
-.hero-inner {{
+.profile-body {{
+    padding: 0 28px 24px;
     position: relative;
-    z-index: 1;
-    display: flex; align-items: flex-end; justify-content: space-between;
-    flex-wrap: wrap; gap: 20px;
 }}
-.hero-eyebrow {{
-    font-size: 10.5px; font-weight: 700; letter-spacing: 0.14em;
-    text-transform: uppercase; color: var(--brown-light); margin-bottom: 6px;
+.profile-avatar-frame {{
+    margin-top: -34px;
+    margin-bottom: 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    flex-wrap: wrap;
+    gap: 14px;
 }}
-.hero-h1 {{
-    font-size: clamp(24px, 2.8vw, 34px); font-weight: 800;
-    letter-spacing: -0.03em; line-height: 1.1; color: #FFFFFF !important; margin: 0;
+.profile-meta-row {{
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px;
+    margin-top: 18px;
+    padding-top: 18px;
+    border-top: 1px solid var(--border);
 }}
-.hero-p {{
-    font-size: 13.5px; color: rgba(245, 242, 235, 0.82);
-    max-width: 56ch; margin: 8px 0 0 !important; line-height: 1.5;
+
+/* 2. Halaman Kompetisi: Split Catalog Header */
+.catalog-header {{
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    flex-wrap: wrap;
+    gap: 16px;
+    padding-bottom: 16px;
+    margin-bottom: 18px;
+    border-bottom: 1px solid var(--border);
+    animation: staggerUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
 }}
-.hero-stat-box {{
-    background: rgba(14, 11, 9, 0.78);
-    backdrop-filter: blur(16px);
+
+/* 3. Halaman Rekomendasi: Functional Workbench Header + Unified Matrix Strip */
+.workbench-bar {{
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 16px;
+    background: var(--card);
+    backdrop-filter: blur(26px);
     border: 1px solid var(--border);
-    border-left: 3px solid var(--brown-light);
-    padding: 10px 16px; border-radius: 8px; min-width: 155px;
+    border-left: 4px solid var(--brown-light);
+    border-radius: 12px;
+    padding: 18px 24px;
+    margin-bottom: 18px;
+    animation: staggerUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
 }}
-.hero-stat-lbl {{ font-size: 10px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); font-weight: 600; }}
-.hero-stat-val {{ font-size: 15.5px; font-weight: 800; color: var(--brown-light); margin-top: 2px; }}
+.formula-chip {{
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 6px 12px;
+    font-size: 11.5px;
+    color: var(--muted);
+}}
+.formula-chip b {{ color: var(--brown-light); }}
 
 /* Squared Monogram & Rectangular Tags */
 .monogram {{
-    flex: none; width: var(--s); height: var(--s); border-radius: 8px;
-    background: var(--brown-soft); border: 1px solid var(--brown-light);
+    flex: none; width: var(--s); height: var(--s); border-radius: 10px;
+    background: #1C1613; border: 2px solid var(--brown-light);
     display: flex; align-items: center; justify-content: center;
     color: var(--brown-light); font-weight: 800; font-size: calc(var(--s) * 0.42);
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.6);
 }}
 .rect-tag {{
     display: inline-block; background: var(--brown-soft);
@@ -675,7 +691,7 @@ input:focus::placeholder, textarea:focus::placeholder {{
     background: rgba(255, 255, 255, 0.04); border-color: var(--border); color: var(--muted);
 }}
 
-/* Full-Width Horizontal Summary Strips (Frosted Glass) */
+/* Full-Width Horizontal Summary Strips */
 .exec-strip {{
     width: 100%; box-sizing: border-box;
     display: grid; grid-template-columns: repeat(3, 1fr);
@@ -683,18 +699,18 @@ input:focus::placeholder, textarea:focus::placeholder {{
     backdrop-filter: blur(26px) saturate(165%);
     -webkit-backdrop-filter: blur(26px) saturate(165%);
     border: 1px solid var(--border);
-    border-radius: 14px; margin: 0 0 20px 0; overflow: hidden;
+    border-radius: 14px; margin: 4px 0 20px 0; overflow: hidden;
     box-shadow: 0 18px 45px rgba(0, 0, 0, 0.45);
-    animation: staggerUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.07s both;
+    animation: staggerUp 0.48s cubic-bezier(0.16, 1, 0.3, 1) 0.05s both;
 }}
 .exec-cell {{
-    padding: 18px 22px; border-right: 1px solid var(--border);
+    padding: 16px 22px; border-right: 1px solid var(--border);
     transition: background 0.2s ease;
 }}
 .exec-cell:hover {{ background: rgba(196, 154, 108, 0.06); }}
 .exec-cell:last-child {{ border-right: none; }}
 .exec-lbl {{ font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .1em; color: var(--brown-light); }}
-.exec-val {{ font-size: 20px; font-weight: 800; color: #FFFFFF; letter-spacing: -0.02em; margin-top: 4px; }}
+.exec-val {{ font-size: 19px; font-weight: 800; color: #FFFFFF; letter-spacing: -0.02em; margin-top: 4px; }}
 .exec-sub {{ font-size: 12px; color: var(--muted); margin-top: 2px; }}
 
 .bar-track {{ height: 5px; border-radius: 3px; background: rgba(255,255,255,.10); overflow: hidden; margin: 12px 0; }}
@@ -812,7 +828,7 @@ elif curr_view == "signup":
         with st.form("signup_form"):
             html("""
                 <div style="margin-bottom:14px;">
-                    <div style="font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--brown-light);margin-bottom:4px;">Registrasi Peserta</div>
+                    <div style="font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);color:var(--brown-light);margin-bottom:4px;">Registrasi Peserta</div>
                     <div style="font-size:26px;font-weight:800;letter-spacing:-0.03em;color:#fff;">Sign Up</div>
                     <div style="font-size:13px;color:var(--muted);margin-top:4px;">Buat akun baru untuk mulai mencari rekan tim lomba.</div>
                 </div>
@@ -839,7 +855,7 @@ elif curr_view == "signup":
             set_view("login")
 
 # ==============================================================================
-# STAGE 3: MAIN WEBSITE DENGAN CINEMATIC FULL-SCREEN BACKDROP & FLOATING DOCK
+# STAGE 3: MAIN WEBSITE DENGAN STRUKTUR BERBEDA TIAP HALAMAN (Tanpa Template Hero Seragam)
 # ==============================================================================
 else:
     prof = st.session_state.user_profile
@@ -869,21 +885,12 @@ else:
             set_view("landing")
 
     # --------------------------------------------------------------------------
-    # HALAMAN 1: PROFIL
+    # HALAMAN 1: PROFIL (Integrated Cover Sheet ala Read.cv / LinkedIn, Tanpa Hero Terpisah)
     # --------------------------------------------------------------------------
     if page == "Profil":
         fields = ("name", "campus", "major", "role", "skills", "availability", "contact", "portfolio")
         filled = sum(bool(prof.get(k)) for k in fields)
         pct_filled = int(filled / len(fields) * 100)
-        page_hero(
-            "01 / PROFIL KOLABORATOR",
-            "Identitas, Peran & Keahlian",
-            "Arahkan kursor ke tab MENU di tepi kiri layar untuk berpindah halaman. Lengkapi profilmu di bawah ini.",
-            BG_PHOTOS["Profil"],
-            "Kelengkapan Data",
-            f"{pct_filled}% Terisi",
-            bar_pct=pct_filled,
-        )
 
         skills_html = badges(prof["skills"]) if prof["skills"] else '<span style="font-size:12.5px;color:var(--subtle)">Belum ada keahlian dipilih</span>'
         weight_val = int(LEVEL_WEIGHTS.get(prof["level"], 0.8) * 100)
@@ -892,48 +899,55 @@ else:
             links_list.append(f'<a class="action-link" style="height:34px !important;font-size:12px !important;" href="{esc(safe_url(prof["contact"]))}" target="_blank">WhatsApp / LinkedIn ↗</a>')
         if prof.get("portfolio"):
             links_list.append(f'<a class="action-link secondary" style="height:34px !important;font-size:12px !important;" href="{esc(safe_url(prof["portfolio"]))}" target="_blank">Portofolio / GitHub ↗</a>')
-        links_html = f'<div style="display:flex;gap:10px;margin-top:14px;">{"".join(links_list)}</div>' if links_list else ""
+        links_html = f'<div style="display:flex;gap:10px;">{"".join(links_list)}</div>' if links_list else ""
 
         html(f"""
-            <div class="arch-card" style="margin-bottom:20px;">
-                <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:16px;padding-bottom:18px;margin-bottom:18px;border-bottom:1px solid var(--border);">
-                    <div style="display:flex;align-items:center;gap:16px;">
-                        {avatar(prof['name'] or '?', 52)}
-                        <div>
-                            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-                                <span style="font-size:21px;font-weight:800;letter-spacing:-0.025em;color:#fff;">{esc(prof['name'] or 'Nama Belum Diisi')}</span>
-                                <span class="rect-tag" style="margin:0">{esc(prof.get('role', 'Kolaborator'))}</span>
-                            </div>
-                            <div style="font-size:13px;color:var(--muted);margin-top:4px;">
-                                {esc(prof['major'] or 'Program Studi')} &nbsp;·&nbsp; {esc(prof['campus'] or 'Universitas')} &nbsp;·&nbsp; Angkatan {prof['year']}
-                            </div>
-                        </div>
-                    </div>
-                    <div style="display:flex;gap:28px;flex-wrap:wrap;">
-                        <div>
-                            <div style="font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--brown-light);">Tingkat Pengalaman</div>
-                            <div style="font-size:14.5px;font-weight:700;color:#fff;margin-top:3px;">{esc(prof['level'])} ({weight_val}% bobot)</div>
-                        </div>
-                        <div>
-                            <div style="font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--brown-light);">Ketersediaan Waktu</div>
-                            <div style="font-size:14.5px;font-weight:700;color:#fff;margin-top:3px;">{esc(prof['availability'] or 'Fleksibel')}</div>
-                        </div>
+            <div class="profile-sheet">
+                <div class="profile-cover">
+                    <div class="profile-cover-bg" style="background-image: linear-gradient(90deg, rgba(10,8,7,.78) 0%, rgba(18,14,11,.42) 60%, rgba(10,8,7,.72) 100%), url('{BG_PHOTOS['Profil']}');"></div>
+                    <div style="position:relative;z-index:1;display:flex;justify-content:space-between;align-items:center;padding:18px 28px;">
+                        <span style="font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--brown-light);">Portofolio Kolaborator</span>
+                        <span style="font-size:11.5px;font-weight:700;color:#fff;background:rgba(14,11,9,.75);border:1px solid var(--border);padding:4px 12px;border-radius:6px;">
+                            Kelengkapan Profil · {pct_filled}%
+                        </span>
                     </div>
                 </div>
-                <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
-                    <div>
-                        <div style="font-size:10.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--brown-light);margin-bottom:8px;">
-                            Keahlian Utama ({len(prof['skills'])})
+                <div class="profile-body">
+                    <div class="profile-avatar-frame">
+                        <div style="display:flex;align-items:flex-end;gap:18px;flex-wrap:wrap;">
+                            {avatar(prof['name'] or '?', 68)}
+                            <div style="padding-bottom:2px;">
+                                <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+                                    <span style="font-size:24px;font-weight:800;letter-spacing:-0.03em;color:#fff;">{esc(prof['name'] or 'Nama Belum Diisi')}</span>
+                                    <span class="rect-tag" style="margin:0">{esc(prof.get('role', 'Kolaborator'))}</span>
+                                </div>
+                                <div style="font-size:13.5px;color:var(--muted);margin-top:4px;">
+                                    {esc(prof['major'] or 'Program Studi')} &nbsp;·&nbsp; {esc(prof['campus'] or 'Universitas')} &nbsp;·&nbsp; Angkatan {prof['year']}
+                                </div>
+                            </div>
                         </div>
-                        <div>{skills_html}</div>
+                        {links_html}
                     </div>
-                    {links_html}
+                    <div class="profile-meta-row">
+                        <div>
+                            <div style="font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--brown-light);">Tingkat Pengalaman</div>
+                            <div style="font-size:15px;font-weight:700;color:#fff;margin-top:4px;">{esc(prof['level'])} ({weight_val}% bobot)</div>
+                        </div>
+                        <div>
+                            <div style="font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--brown-light);">Ketersediaan Jadwal</div>
+                            <div style="font-size:15px;font-weight:700;color:#fff;margin-top:4px;">{esc(prof['availability'] or 'Fleksibel')}</div>
+                        </div>
+                        <div>
+                            <div style="font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--brown-light);margin-bottom:6px;">Keahlian Utama ({len(prof['skills'])})</div>
+                            <div>{skills_html}</div>
+                        </div>
+                    </div>
                 </div>
             </div>
         """)
 
         with st.form("profile_form"):
-            st.markdown("#### Perbarui Data Akademik, Peran & Keahlian")
+            st.markdown("#### Edit Informasi Akademik & Keahlian")
             col_l, col_r = st.columns(2, gap="medium")
             with col_l:
                 name = st.text_input("Nama Lengkap *", value=prof["name"], placeholder="Farraj Bagas")
@@ -965,18 +979,21 @@ else:
                     st.rerun()
 
     # --------------------------------------------------------------------------
-    # HALAMAN 2: KOMPETISI
+    # HALAMAN 2: KOMPETISI (Editorial Catalog Top Bar + Search & Filter Deck)
     # --------------------------------------------------------------------------
     elif page == "Kompetisi":
         comps = st.session_state.competitions
-        page_hero(
-            "02 / DIREKTORI KOMPETISI",
-            "Eksplorasi Ajang Lomba",
-            "Telusuri kompetisi berdasarkan kategori, tenggat pendaftaran, ukuran tim, dan kebutuhan peran.",
-            BG_PHOTOS["Kompetisi"],
-            "Status Direktori",
-            f"{len(comps)} Kompetisi",
-        )
+        html(f"""
+            <div class="catalog-header">
+                <div>
+                    <div style="font-size:28px;font-weight:800;letter-spacing:-0.03em;color:#fff;line-height:1.1;">Katalog Kompetisi</div>
+                    <div style="font-size:13.5px;color:var(--muted);margin-top:6px;">Daftar kompetisi teknologi, data science, desain, dan bisnis beserta kebutuhan peran tim.</div>
+                </div>
+                <div style="font-size:13px;font-weight:700;color:var(--brown-light);background:var(--card);border:1px solid var(--border);padding:8px 16px;border-radius:8px;">
+                    {len(comps)} Kompetisi Terdaftar
+                </div>
+            </div>
+        """)
 
         c1, c2, c3 = st.columns([2.2, 1, 1], gap="small")
         q = c1.text_input("Cari", placeholder="Cari nama kompetisi, penyelenggara, atau peran...", label_visibility="collapsed").strip().lower()
@@ -1027,7 +1044,7 @@ else:
                 <div class="arch-card" style="text-align:center;padding:48px 28px !important;margin-top:8px;">
                     <div style="font-size:18px;font-weight:800;letter-spacing:-0.02em;color:#fff;margin-bottom:6px;">Belum Ada Kompetisi Terdaftar</div>
                     <div style="font-size:13.5px;color:var(--muted);max-width:46ch;margin:0 auto;line-height:1.55;">
-                        Buka menu <b>+ Daftarkan Kompetisi Baru</b> di atas untuk menambahkan ajang lomba beserta ukuran tim dan peran yang dibutuhkan.
+                        Buka panel <b>+ Daftarkan Kompetisi Baru</b> di atas untuk menambahkan lomba beserta ukuran tim dan peran yang dibutuhkan.
                     </div>
                 </div>
             """)
@@ -1056,7 +1073,7 @@ else:
                         st.rerun()
 
     # --------------------------------------------------------------------------
-    # HALAMAN 3: REKOMENDASI
+    # HALAMAN 3: REKOMENDASI (Direct Matchmaking Workbench, Tanpa Hero Banner Gimmick)
     # --------------------------------------------------------------------------
     elif page == "Rekomendasi":
         candidates = st.session_state.candidates
@@ -1065,14 +1082,19 @@ else:
         if st.session_state.selected_comp not in comp_titles:
             st.session_state.selected_comp = "Semua Kompetisi"
 
-        page_hero(
-            "03 / PENCOCOKAN TIM",
-            "Rekomendasi Rekan Kolaborasi",
-            "Peringkat kandidat dihitung secara objektif: 50% Skill Overlap + 30% Role Fit + 20% Time Overlap.",
-            BG_PHOTOS["Rekomendasi"],
-            "Kandidat Tersedia",
-            f"{len(candidates)} Peserta",
-        )
+        html("""
+            <div class="workbench-bar">
+                <div>
+                    <div style="font-size:24px;font-weight:800;letter-spacing:-0.03em;color:#fff;">Rekomendasi Rekan Tim</div>
+                    <div style="font-size:13px;color:var(--muted);margin-top:3px;">Peringkat kandidat diurutkan dari skor kecocokan tertinggi untuk kompetisi pilihanmu.</div>
+                </div>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                    <span class="formula-chip">Skill Overlap <b>50%</b></span>
+                    <span class="formula-chip">Role Fit <b>30%</b></span>
+                    <span class="formula-chip">Time Overlap <b>20%</b></span>
+                </div>
+            </div>
+        """)
 
         if not prof["name"] or not prof["skills"]:
             html("""
@@ -1100,19 +1122,19 @@ else:
             html(f"""
                 <div class="exec-strip">
                     <div class="exec-cell">
-                        <div class="exec-lbl">Keahlian & Peran Kamu</div>
-                        <div class="exec-val">{len(prof['skills'])} Keahlian</div>
-                        <div class="exec-sub">{esc(prof.get('role', '-'))} · Level {esc(prof['level'])}</div>
+                        <div class="exec-lbl">Profil Aktif Kamu</div>
+                        <div class="exec-val">{esc(prof.get('role', '-'))}</div>
+                        <div class="exec-sub">{len(prof['skills'])} Keahlian · Level {esc(prof['level'])}</div>
                     </div>
                     <div class="exec-cell">
-                        <div class="exec-lbl">Target Kompetisi</div>
+                        <div class="exec-lbl">Target Pencocokan</div>
                         <div class="exec-val" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{esc(sel_title)}</div>
-                        <div class="exec-sub">{'Filter peran spesifik aktif' if active_comp else 'Pencocokan komplementer umum'}</div>
+                        <div class="exec-sub">{'Prioritas peran sesuai kebutuhan lomba' if active_comp else 'Pencocokan lintas peran komplementer'}</div>
                     </div>
                     <div class="exec-cell">
-                        <div class="exec-lbl">Bobot Kalkulasi Skor</div>
-                        <div class="exec-val">50% · 30% · 20%</div>
-                        <div class="exec-sub">Skill Overlap · Role Fit · Time Overlap</div>
+                        <div class="exec-lbl">Kandidat Tersedia</div>
+                        <div class="exec-val">{len(candidates)} Peserta</div>
+                        <div class="exec-sub">Diurutkan dari skor tertinggi</div>
                     </div>
                 </div>
             """)
@@ -1185,21 +1207,24 @@ else:
                     })
 
     # --------------------------------------------------------------------------
-    # HALAMAN 4: TIM SAYA
+    # HALAMAN 4: TIM SAYA (Recruitment Board Header + Creation Form & Active Teams)
     # --------------------------------------------------------------------------
     else:
         teams = st.session_state.teams
         comps = st.session_state.competitions
         comp_choices = [c["title"] for c in comps] or ["Kompetisi Umum"]
 
-        page_hero(
-            "04 / MANAJEMEN TIM",
-            "Buat & Gabung Tim Lomba",
-            "Bentuk tim baru untuk kompetisi incaranmu atau bergabung ke tim yang sedang mencari anggota.",
-            BG_PHOTOS["Tim Saya"],
-            "Tim Terdaftar",
-            f"{len(teams)} Tim Aktif",
-        )
+        html(f"""
+            <div class="catalog-header">
+                <div>
+                    <div style="font-size:28px;font-weight:800;letter-spacing:-0.03em;color:#fff;line-height:1.1;">Rekrutmen & Manajemen Tim</div>
+                    <div style="font-size:13.5px;color:var(--muted);margin-top:6px;">Bentuk tim baru untuk kompetisi incaranmu atau bergabung ke tim yang sedang membuka posisi.</div>
+                </div>
+                <div style="font-size:13px;font-weight:700;color:var(--brown-light);background:var(--card);border:1px solid var(--border);padding:8px 16px;border-radius:8px;">
+                    {len(teams)} Tim Terbuka
+                </div>
+            </div>
+        """)
 
         with st.form("create_team_form", clear_on_submit=True):
             st.markdown("#### Bentuk Tim Baru")
