@@ -36,6 +36,7 @@ A web app that helps university students find teammates for competitions (hackat
 Tugas-Project-DDP/
 ├── README.md
 ├── requirements.txt
+├── settings.toml       # Application & database settings
 ├── .gitignore
 ├── app.py              # Streamlit app (UI and page flow)
 ├── models.py           # SQLite tables and queries: User, Skill, Competition, Team
