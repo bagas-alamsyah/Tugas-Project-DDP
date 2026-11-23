@@ -37,11 +37,11 @@ LEVEL_WEIGHTS = {"Pemula": 0.6, "Menengah": 0.8, "Mahir": 1.0}
 PAGES = ["Profil", "Kompetisi", "Rekomendasi", "Tim Saya"]
 
 BG_PHOTOS = {
-    "auth": "https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=2000&q=85",
-    "Profil": "https://images.unsplash.com/photo-1531482615713-2afd69097998?auto=format&fit=crop&w=1800&q=80",
-    "Kompetisi": "https://images.unsplash.com/photo-1540575467063-178a50c2df87?auto=format&fit=crop&w=1800&q=80",
-    "Rekomendasi": "https://images.unsplash.com/photo-1515187029135-18ee286d815b?auto=format&fit=crop&w=1800&q=80",
-    "Tim Saya": "https://images.unsplash.com/photo-1521737604893-d14cc237f11d?auto=format&fit=crop&w=1800&q=80",
+    "auth": "https://images.unsplash.com/photo-1504384308090-c894fdcc538d?auto=format&fit=crop&w=2000&q=85",
+    "Profil": "https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?auto=format&fit=crop&w=1920&q=85",
+    "Kompetisi": "https://images.unsplash.com/photo-1519389950473-47ba0277781c?auto=format&fit=crop&w=1920&q=85",
+    "Rekomendasi": "https://images.unsplash.com/photo-1523240795612-9a054b0db644?auto=format&fit=crop&w=1920&q=85",
+    "Tim Saya": "https://images.unsplash.com/photo-1522202176988-66273c2fd55f?auto=format&fit=crop&w=1920&q=85",
 }
 
 
@@ -119,16 +119,19 @@ def compute_match_breakdown(user: dict, cand: dict, comp: dict | None = None) ->
     }
 
 
-def page_hero(eyebrow: str, title: str, subtitle: str, photo_url: str, meta_label: str = "", meta_val: str = "") -> None:
-    """Render full-width architectural hero banner aligned flush with page content."""
+def page_hero(eyebrow: str, title: str, subtitle: str, photo_url: str, meta_label: str = "", meta_val: str = "", bar_pct: int | None = None) -> None:
+    """Render full-width architectural hero banner with animated Ken Burns photo layer."""
+    bar_html = f'<div class="bar-track" style="margin:8px 0 0;height:4px;"><span class="bar-fill" style="width:{bar_pct}%"></span></div>' if bar_pct is not None else ""
     meta_html = f"""
         <div class="hero-stat-box">
             <div class="hero-stat-lbl">{esc(meta_label)}</div>
             <div class="hero-stat-val">{esc(meta_val)}</div>
+            {bar_html}
         </div>
     """ if meta_val else ""
     html(f"""
-        <div class="arch-hero" style="background-image: linear-gradient(90deg, rgba(10,9,8,.94) 0%, rgba(12,10,9,.78) 55%, rgba(14,11,9,.48) 100%), url('{photo_url}');">
+        <div class="arch-hero">
+            <div class="hero-bg-layer" style="background-image: linear-gradient(90deg, rgba(10,8,7,.90) 0%, rgba(14,11,9,.64) 52%, rgba(16,12,10,.30) 100%), url('{photo_url}');"></div>
             <div class="hero-inner">
                 <div>
                     <div class="hero-eyebrow">{esc(eyebrow)}</div>
@@ -141,23 +144,39 @@ def page_hero(eyebrow: str, title: str, subtitle: str, photo_url: str, meta_labe
     """)
 
 
-# 3. Architectural CSS + Warm Brown Palette + Visible Mac Dock Handle
+# 3. Architectural CSS + Dynamic Full-Screen Backdrop + Rich Motion System
 curr_view = st.session_state.view
 is_app = curr_view == "app"
+curr_page = st.session_state.active_page if st.session_state.active_page in PAGES else "Profil"
+active_bg_url = BG_PHOTOS[curr_page] if is_app else BG_PHOTOS["auth"]
 
 bg_css = f"""
 .stApp {{
-    background-image: radial-gradient(circle at 50% 32%, rgba(12, 9, 7, .50) 0%, rgba(10, 8, 7, .90) 100%), url('{BG_PHOTOS["auth"]}');
+    background-image:
+        radial-gradient(circle at 16% 14%, rgba(166, 123, 91, 0.22) 0%, transparent 48%),
+        radial-gradient(circle at 86% 82%, rgba(139, 94, 60, 0.18) 0%, transparent 52%),
+        linear-gradient(135deg, rgba(10, 8, 7, {'0.88' if is_app else '0.58'}) 0%, rgba(14, 11, 9, {'0.80' if is_app else '0.78'}) 50%, rgba(10, 8, 7, {'0.91' if is_app else '0.90'}) 100%),
+        url('{active_bg_url}');
     background-size: cover;
     background-position: center;
     background-attachment: fixed;
+    transition: background-image 0.5s ease-in-out;
 }}
-""" if not is_app else """
-.stApp { background: #0A0908; }
+.stApp::before {{
+    content: "";
+    position: fixed;
+    inset: 0;
+    background:
+        radial-gradient(650px circle at 25% 25%, rgba(196, 154, 108, 0.11), transparent 70%),
+        radial-gradient(550px circle at 78% 72%, rgba(139, 94, 60, 0.10), transparent 70%);
+    pointer-events: none;
+    z-index: 0;
+    animation: ambientDrift 12s ease-in-out infinite alternate;
+}}
 """
 
 sidebar_dock_css = """
-/* Mac-Style Auto-Pop-Up Floating Left Dock dengan Penanda Tab "MENU" yang Jelas */
+/* Mac-Style Auto-Pop-Up Floating Left Dock dengan Penanda Tab "MENU" Beranimasi */
 section[data-testid="stSidebar"] {
     display: block !important;
     position: fixed !important;
@@ -169,23 +188,22 @@ section[data-testid="stSidebar"] {
     max-width: 244px !important;
     height: auto !important;
     max-height: 86vh !important;
-    background: rgba(18, 15, 13, 0.94) !important;
+    background: rgba(18, 14, 12, 0.90) !important;
     backdrop-filter: blur(32px) saturate(180%) !important;
     -webkit-backdrop-filter: blur(32px) saturate(180%) !important;
-    border: 1px solid rgba(196, 154, 108, 0.32) !important;
+    border: 1px solid rgba(196, 154, 108, 0.36) !important;
     border-left: none !important;
     border-radius: 0 18px 18px 0 !important;
     box-shadow: 0 28px 70px rgba(0, 0, 0, 0.9) !important;
     z-index: 999999 !important;
     opacity: 1 !important;
-    transition: transform 0.30s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.25s ease !important;
+    transition: transform 0.34s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.28s ease !important;
     overflow: visible !important;
 }
 section[data-testid="stSidebar"] > div {
     padding: 20px 18px 22px !important;
     overflow: visible !important;
 }
-/* Area sensor hover ekstra di pinggir kiri layar */
 section[data-testid="stSidebar"]::before {
     content: "";
     position: absolute;
@@ -195,7 +213,6 @@ section[data-testid="stSidebar"]::before {
     width: 52px;
     background: transparent;
 }
-/* PENANDA DOCK (Tab "☰ MENU" berwarna Coklat/Bronze di tepi kiri layar) */
 section[data-testid="stSidebar"]::after {
     content: "☰  MENU";
     position: absolute;
@@ -208,13 +225,14 @@ section[data-testid="stSidebar"]::after {
     font-size: 10px;
     font-weight: 800;
     color: #F5EBE1;
-    background: linear-gradient(180deg, #8B5E3C, #6F4E37);
-    border: 1px solid rgba(212, 163, 115, 0.55);
+    background: linear-gradient(180deg, #9C6B43, #6F4E37);
+    border: 1px solid rgba(212, 163, 115, 0.65);
     border-left: none;
     padding: 16px 8px;
     border-radius: 0 10px 10px 0;
     box-shadow: 6px 0 22px rgba(0, 0, 0, 0.75);
     cursor: pointer;
+    animation: dockPulse 3s ease-in-out infinite;
     transition: opacity 0.2s ease, transform 0.2s ease;
 }
 section[data-testid="stSidebar"]:hover,
@@ -225,17 +243,16 @@ section[data-testid="stSidebar"]:hover::after {
     opacity: 0 !important;
     pointer-events: none;
 }
-/* Efek Magnification ala Mac Dock pada tombol menu di dalam Dock */
 section[data-testid="stSidebar"] .stButton > button {
     justify-content: flex-start !important;
     text-align: left !important;
     padding: 0 14px !important;
     height: 42px !important;
     border-radius: 10px !important;
-    transition: transform 0.18s cubic-bezier(0.22, 1, 0.36, 1), background 0.16s ease, border-color 0.16s ease !important;
+    transition: transform 0.2s cubic-bezier(0.22, 1, 0.36, 1), background 0.16s ease, border-color 0.16s ease !important;
 }
 section[data-testid="stSidebar"] .stButton > button:hover {
-    transform: scale(1.04) translateX(5px) !important;
+    transform: scale(1.045) translateX(6px) !important;
 }
 """ if is_app else """
 section[data-testid="stSidebar"] { display: none !important; }
@@ -249,23 +266,39 @@ html(f"""<style>
     color-scheme: dark;
     --primary-color: #8B5E3C !important;
     --bg: #0A0908;
-    --card: #12100E;
-    --surface: #171412;
-    --surface-2: #211C18;
+    --card: rgba(20, 16, 14, 0.74);
+    --surface: rgba(24, 20, 17, 0.78);
+    --surface-2: rgba(36, 30, 25, 0.85);
     --brown: #8B5E3C;
     --brown-dark: #6F4E37;
     --brown-light: #C49A6C;
-    --brown-soft: rgba(139, 94, 60, 0.18);
-    --border: rgba(212, 163, 115, 0.16);
-    --border-strong: rgba(196, 154, 108, 0.42);
+    --brown-soft: rgba(139, 94, 60, 0.20);
+    --border: rgba(212, 163, 115, 0.18);
+    --border-strong: rgba(196, 154, 108, 0.48);
     --ink: #F5F2EB;
-    --muted: #A89F96;
-    --subtle: #736B63;
+    --muted: #B0A69D;
+    --subtle: #7A7168;
 }}
 
-@keyframes pageFade {{
-    from {{ opacity: 0; transform: translateY(6px); }}
-    to {{ opacity: 1; transform: translateY(0); }}
+/* Keyframe Animations */
+@keyframes staggerUp {{
+    from {{ opacity: 0; transform: translateY(18px) scale(0.99); }}
+    to {{ opacity: 1; transform: translateY(0) scale(1); }}
+}}
+@keyframes heroPan {{
+    0% {{ transform: scale(1) translate(0, 0); }}
+    100% {{ transform: scale(1.08) translate(-1.2%, -1%); }}
+}}
+@keyframes barGrow {{
+    from {{ width: 0%; }}
+}}
+@keyframes ambientDrift {{
+    0% {{ transform: translate3d(-2%, -2%, 0) scale(1); opacity: 0.75; }}
+    100% {{ transform: translate3d(3%, 2%, 0) scale(1.08); opacity: 1; }}
+}}
+@keyframes dockPulse {{
+    0%, 100% {{ box-shadow: 4px 0 18px rgba(139, 94, 60, 0.35); }}
+    50% {{ box-shadow: 6px 0 28px rgba(196, 154, 108, 0.72); }}
 }}
 
 html, body, .stApp, [data-testid="stMarkdownContainer"], input, textarea, button, label, select, div {{
@@ -287,6 +320,8 @@ header[data-testid="stHeader"],
 [data-testid="stAppViewBlockContainer"] {{
     width: 100% !important;
     margin-left: 0 !important;
+    position: relative;
+    z-index: 1;
 }}
 .block-container {{
     max-width: 1060px !important;
@@ -294,7 +329,7 @@ header[data-testid="stHeader"],
     margin: 0 auto !important;
     padding-top: {'1.8rem' if is_app else '2.5rem'} !important;
     padding-bottom: 3.5rem !important;
-    animation: pageFade .22s ease-out;
+    animation: staggerUp .38s cubic-bezier(0.16, 1, 0.3, 1);
 }}
 div.stMarkdown,
 .stMarkdown,
@@ -319,7 +354,7 @@ div.stElementContainer,
     margin: 0 0 .4rem 0 !important;
 }}
 
-/* GANTI SEMUA WARNA MERAH STREAMLIT (#FF4B4B) JADI COKLAT (ESPRESSO / BRONZE) */
+/* Warna Coklat (Espresso / Bronze) pada Tag Multiselect & Tabs */
 span[data-baseweb="tag"],
 [data-baseweb="select"] span[data-baseweb="tag"] {{
     background-color: var(--brown-dark) !important;
@@ -328,7 +363,9 @@ span[data-baseweb="tag"],
     border-radius: 6px !important;
     color: #FDFBF7 !important;
     filter: none !important;
+    transition: transform 0.15s ease !important;
 }}
+span[data-baseweb="tag"]:hover {{ transform: translateY(-1px); }}
 span[data-baseweb="tag"] * {{
     color: #FDFBF7 !important;
     font-weight: 600 !important;
@@ -346,30 +383,52 @@ button.step-up:active, button.step-down:active {{
     background-color: var(--brown) !important;
     color: #FFFFFF !important;
 }}
-[data-testid="stSliderThumbValue"] {{ color: var(--brown-light) !important; }}
-[data-baseweb="slider"] div[role="slider"] {{ background-color: var(--brown) !important; border-color: var(--brown-light) !important; }}
 
-/* Architectural Panels & Forms */
+/* Translucent Frosted Glass Cards, Forms & Interactive Glass Shimmer */
 .arch-card, [data-testid="stForm"] {{
     width: 100% !important;
     background: var(--card) !important;
+    backdrop-filter: blur(26px) saturate(165%) !important;
+    -webkit-backdrop-filter: blur(26px) saturate(165%) !important;
     border: 1px solid var(--border) !important;
-    border-radius: 12px !important;
+    border-radius: 14px !important;
     padding: 24px 26px !important;
     box-sizing: border-box !important;
-    transition: border-color .16s ease !important;
+    box-shadow: 0 22px 50px rgba(0, 0, 0, 0.5) !important;
+    position: relative !important;
+    overflow: hidden !important;
+    animation: staggerUp 0.55s cubic-bezier(0.16, 1, 0.3, 1) 0.12s both;
+    transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.25s ease, box-shadow 0.25s ease !important;
 }}
-.arch-card.hoverable:hover {{
+/* Efek Kilau Kaca Diagonal (Glass Sheen) saat Kartu di-Hover */
+.arch-card::after {{
+    content: "";
+    position: absolute;
+    top: 0;
+    left: -120%;
+    width: 75%;
+    height: 100%;
+    background: linear-gradient(115deg, transparent 20%, rgba(212, 163, 115, 0.12) 50%, transparent 80%);
+    transform: skewX(-20deg);
+    pointer-events: none;
+    transition: left 0.65s cubic-bezier(0.16, 1, 0.3, 1);
+}}
+.arch-card:hover {{
+    transform: translateY(-4px);
     border-color: var(--border-strong) !important;
+    box-shadow: 0 28px 60px -12px rgba(0, 0, 0, 0.72), 0 0 24px -8px rgba(196, 154, 108, 0.25) !important;
+}}
+.arch-card:hover::after {{
+    left: 140%;
 }}
 
-/* Inputs & Posisi "Press Enter to submit form" Sejajar Tengah dengan Teks */
+/* Inputs & Posisi "Press Enter to submit form" */
 [data-testid="stTextInputRootElement"],
 [data-baseweb="input"],
 [data-baseweb="base-input"],
 [data-baseweb="select"] > div,
 [data-baseweb="textarea"] {{
-    background-color: #171412 !important;
+    background-color: rgba(18, 14, 12, 0.75) !important;
     border: 1px solid var(--border) !important;
     border-top-color: var(--border) !important;
     border-right-color: var(--border) !important;
@@ -378,6 +437,7 @@ button.step-up:active, button.step-down:active {{
     border-radius: 8px !important;
     color: var(--ink) !important;
     box-shadow: none !important;
+    transition: border-color 0.18s ease, box-shadow 0.18s ease, background-color 0.18s ease !important;
 }}
 [data-baseweb="input"] > div,
 [data-baseweb="base-input"] > div {{
@@ -395,8 +455,8 @@ button.step-up:active, button.step-down:active {{
     border-right-color: var(--brown-light) !important;
     border-bottom-color: var(--brown-light) !important;
     border-left-color: var(--brown-light) !important;
-    box-shadow: 0 0 0 1px var(--brown-light) !important;
-    background-color: #1E1915 !important;
+    box-shadow: 0 0 0 1px var(--brown-light), 0 0 16px -4px rgba(196, 154, 108, 0.35) !important;
+    background-color: rgba(28, 22, 18, 0.92) !important;
 }}
 [data-testid="InputInstructions"] {{
     position: absolute !important;
@@ -418,7 +478,6 @@ button.step-up:active, button.step-down:active {{
 [data-testid="stTextInput"] > div:not(:has(button)) [data-testid="InputInstructions"] {{
     right: 14px !important;
 }}
-/* Hilangkan teks contoh (placeholder) otomatis saat input diklik/fokus & sembunyikan 'Press Enter' saat masih kosong */
 input::placeholder, textarea::placeholder {{
     transition: opacity 0.12s ease !important;
 }}
@@ -430,7 +489,7 @@ input:focus::placeholder, textarea:focus::placeholder {{
     opacity: 0 !important;
 }}
 
-/* Professional Buttons (Aksen Coklat Espresso & Bronze) */
+/* Professional Buttons dengan Animasi Hover & Tekan */
 .stButton > button, .stFormSubmitButton > button, .action-link {{
     border-radius: 8px !important;
     font-weight: 600 !important;
@@ -439,10 +498,13 @@ input:focus::placeholder, textarea:focus::placeholder {{
     height: 40px !important;
     padding: 0 14px !important;
     white-space: nowrap !important;
-    transition: background .14s ease, border-color .14s ease, transform .08s ease !important;
+    transition: transform 0.16s cubic-bezier(0.34, 1.56, 0.64, 1), background 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease !important;
+}}
+.stButton > button:hover, .stFormSubmitButton > button:hover, .action-link:hover {{
+    transform: translateY(-2px);
 }}
 .stButton > button:active, .stFormSubmitButton > button:active, .action-link:active {{
-    transform: translateY(1px) scale(0.99) !important;
+    transform: translateY(1px) scale(0.97) !important;
 }}
 [data-testid^="stBaseButton-primary"] {{
     background: linear-gradient(135deg, #9C6B43, #7A5233) !important;
@@ -455,10 +517,12 @@ input:focus::placeholder, textarea:focus::placeholder {{
     font-weight: 700 !important;
 }}
 [data-testid^="stBaseButton-primary"]:hover {{
-    background: linear-gradient(135deg, #AE7A4E, #8B5E3C) !important;
+    background: linear-gradient(135deg, #B07B50, #8B5E3C) !important;
+    box-shadow: 0 12px 26px -6px rgba(196, 154, 108, 0.65) !important;
 }}
 [data-testid^="stBaseButton-secondary"] {{
-    background: rgba(255, 255, 255, 0.05) !important;
+    background: rgba(24, 20, 17, 0.72) !important;
+    backdrop-filter: blur(16px) !important;
     color: var(--ink) !important;
     border: 1px solid var(--border) !important;
 }}
@@ -483,7 +547,7 @@ input:focus::placeholder, textarea:focus::placeholder {{
     border-color: var(--brown-light); background: var(--brown-soft);
 }}
 
-/* Landing Page Centered (Pakai <div> penuh agar tidak terkena override <p> Streamlit) */
+/* Landing Page Centered */
 .landing-wrap {{
     width: 100% !important;
     display: flex;
@@ -492,6 +556,7 @@ input:focus::placeholder, textarea:focus::placeholder {{
     justify-content: center;
     text-align: center !important;
     margin: 9vh auto 26px !important;
+    animation: staggerUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
 }}
 .landing-eyebrow {{
     width: 100%;
@@ -519,31 +584,50 @@ input:focus::placeholder, textarea:focus::placeholder {{
     text-align: center !important;
     font-size: clamp(15px, 1.4vw, 17.5px);
     line-height: 1.6;
-    color: rgba(245, 242, 235, 0.82);
+    color: rgba(245, 242, 235, 0.84);
     margin: 0 auto 8px !important;
 }}
 .pillar-card {{
-    background: rgba(18, 15, 13, 0.84);
-    backdrop-filter: blur(20px);
+    background: rgba(18, 15, 13, 0.78);
+    backdrop-filter: blur(24px);
     border: 1px solid var(--border);
     border-top: 2px solid var(--brown-light);
-    border-radius: 12px;
+    border-radius: 14px;
     padding: 22px 24px;
     height: 100%;
+    animation: staggerUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.15s both;
+    transition: transform 0.22s ease, border-color 0.22s ease, box-shadow 0.22s ease;
+}}
+.pillar-card:hover {{
+    transform: translateY(-4px);
+    border-color: var(--border-strong);
+    box-shadow: 0 20px 45px -15px rgba(0, 0, 0, 0.75);
 }}
 
-/* Editorial Photographic Hero inside App */
+/* Editorial Photographic Hero inside App dengan Ken Burns Slow Pan */
 .arch-hero {{
     width: 100%;
     box-sizing: border-box;
+    border-radius: 14px;
+    border: 1px solid var(--border);
+    padding: 34px 36px;
+    margin: 0 0 20px 0;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 24px 55px -18px rgba(0, 0, 0, 0.75);
+    animation: staggerUp 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
+}}
+.hero-bg-layer {{
+    position: absolute;
+    inset: 0;
     background-size: cover;
     background-position: center;
-    border-radius: 12px;
-    border: 1px solid var(--border);
-    padding: 32px 34px;
-    margin: 0 0 20px 0;
+    z-index: 0;
+    animation: heroPan 18s ease-in-out infinite alternate;
 }}
 .hero-inner {{
+    position: relative;
+    z-index: 1;
     display: flex; align-items: flex-end; justify-content: space-between;
     flex-wrap: wrap; gap: 20px;
 }}
@@ -556,15 +640,15 @@ input:focus::placeholder, textarea:focus::placeholder {{
     letter-spacing: -0.03em; line-height: 1.1; color: #FFFFFF !important; margin: 0;
 }}
 .hero-p {{
-    font-size: 13.5px; color: rgba(245, 242, 235, 0.80);
+    font-size: 13.5px; color: rgba(245, 242, 235, 0.82);
     max-width: 56ch; margin: 8px 0 0 !important; line-height: 1.5;
 }}
 .hero-stat-box {{
-    background: rgba(14, 12, 10, 0.82);
-    backdrop-filter: blur(12px);
+    background: rgba(14, 11, 9, 0.78);
+    backdrop-filter: blur(16px);
     border: 1px solid var(--border);
     border-left: 3px solid var(--brown-light);
-    padding: 10px 16px; border-radius: 6px; min-width: 145px;
+    padding: 10px 16px; border-radius: 8px; min-width: 155px;
 }}
 .hero-stat-lbl {{ font-size: 10px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); font-weight: 600; }}
 .hero-stat-val {{ font-size: 15.5px; font-weight: 800; color: var(--brown-light); margin-top: 2px; }}
@@ -581,28 +665,44 @@ input:focus::placeholder, textarea:focus::placeholder {{
     color: #F5EBE1; border: 1px solid var(--border-strong);
     padding: 4px 10px; border-radius: 5px;
     font-size: 11.5px; font-weight: 600; margin: 2px 5px 2px 0;
+    transition: transform 0.15s ease, background 0.15s ease;
+}}
+.rect-tag:hover {{
+    transform: translateY(-1px);
+    background: rgba(139, 94, 60, 0.34);
 }}
 .rect-tag.subtle {{
     background: rgba(255, 255, 255, 0.04); border-color: var(--border); color: var(--muted);
 }}
 
-/* Full-Width Horizontal Summary Strips */
+/* Full-Width Horizontal Summary Strips (Frosted Glass) */
 .exec-strip {{
     width: 100%; box-sizing: border-box;
     display: grid; grid-template-columns: repeat(3, 1fr);
-    background: var(--card); border: 1px solid var(--border);
-    border-radius: 12px; margin: 0 0 20px 0; overflow: hidden;
+    background: var(--card);
+    backdrop-filter: blur(26px) saturate(165%);
+    -webkit-backdrop-filter: blur(26px) saturate(165%);
+    border: 1px solid var(--border);
+    border-radius: 14px; margin: 0 0 20px 0; overflow: hidden;
+    box-shadow: 0 18px 45px rgba(0, 0, 0, 0.45);
+    animation: staggerUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.07s both;
 }}
 .exec-cell {{
     padding: 18px 22px; border-right: 1px solid var(--border);
+    transition: background 0.2s ease;
 }}
+.exec-cell:hover {{ background: rgba(196, 154, 108, 0.06); }}
 .exec-cell:last-child {{ border-right: none; }}
 .exec-lbl {{ font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .1em; color: var(--brown-light); }}
 .exec-val {{ font-size: 20px; font-weight: 800; color: #FFFFFF; letter-spacing: -0.02em; margin-top: 4px; }}
-.exec-sub {{ font-size: 12px; color: var(--subtle); margin-top: 2px; }}
+.exec-sub {{ font-size: 12px; color: var(--muted); margin-top: 2px; }}
 
-.bar-track {{ height: 5px; border-radius: 3px; background: rgba(255,255,255,.08); overflow: hidden; margin: 12px 0; }}
-.bar-fill {{ display: block; height: 100%; background: linear-gradient(90deg, #8B5E3C, #C49A6C); }}
+.bar-track {{ height: 5px; border-radius: 3px; background: rgba(255,255,255,.10); overflow: hidden; margin: 12px 0; }}
+.bar-fill {{
+    display: block; height: 100%;
+    background: linear-gradient(90deg, #8B5E3C, #D4A373);
+    animation: barGrow 0.85s cubic-bezier(0.16, 1, 0.3, 1) both;
+}}
 .score-table {{
     display: grid; grid-template-columns: repeat(3, 1fr);
     border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);
@@ -614,7 +714,7 @@ input:focus::placeholder, textarea:focus::placeholder {{
 </style>""")
 
 # ==============================================================================
-# STAGE 1: CENTERED LANDING PAGE (100% Center dengan Flex Column + <div>)
+# STAGE 1: CENTERED LANDING PAGE
 # ==============================================================================
 if curr_view == "landing":
     html("""
@@ -739,16 +839,13 @@ elif curr_view == "signup":
             set_view("login")
 
 # ==============================================================================
-# STAGE 3: MAIN WEBSITE DENGAN AUTO-POP-UP MAC DOCK DI SISI KIRI
+# STAGE 3: MAIN WEBSITE DENGAN CINEMATIC FULL-SCREEN BACKDROP & FLOATING DOCK
 # ==============================================================================
 else:
     prof = st.session_state.user_profile
-    page = st.session_state.active_page
-    if page not in PAGES:
-        page = "Profil"
-        st.session_state.active_page = "Profil"
+    page = curr_page
+    st.session_state.active_page = page
 
-    # Auto-Pop-Up Floating Mac Dock di Sisi Kiri Layar (Dengan Tab Penanda "☰ MENU")
     with st.sidebar:
         u_label = esc(prof["name"] or "Mahasiswa")
         u_camp = esc(prof["campus"] or "Fasilkom UI")
@@ -777,13 +874,15 @@ else:
     if page == "Profil":
         fields = ("name", "campus", "major", "role", "skills", "availability", "contact", "portfolio")
         filled = sum(bool(prof.get(k)) for k in fields)
+        pct_filled = int(filled / len(fields) * 100)
         page_hero(
             "01 / PROFIL KOLABORATOR",
             "Identitas, Peran & Keahlian",
             "Arahkan kursor ke tab MENU di tepi kiri layar untuk berpindah halaman. Lengkapi profilmu di bawah ini.",
             BG_PHOTOS["Profil"],
             "Kelengkapan Data",
-            f"{int(filled / len(fields) * 100)}% Terisi",
+            f"{pct_filled}% Terisi",
+            bar_pct=pct_filled,
         )
 
         skills_html = badges(prof["skills"]) if prof["skills"] else '<span style="font-size:12.5px;color:var(--subtle)">Belum ada keahlian dipilih</span>'
