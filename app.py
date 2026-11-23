@@ -113,7 +113,7 @@ def compute_match_score(user: dict, cand: dict, comp: dict | None = None) -> int
     return max(1, min(99, final))
 
 
-# 3. Architectural CSS + Dynamic Full-Screen Backdrop + Clean Motion
+# 3. Architectural CSS + Scroll-Driven Animations (Apple / ASUS Product Showcase Style)
 curr_view = st.session_state.view
 is_app = curr_view == "app"
 curr_page = st.session_state.active_page if st.session_state.active_page in PAGES else "Profil"
@@ -124,7 +124,7 @@ bg_css = f"""
     background-image:
         radial-gradient(circle at 16% 14%, rgba(166, 123, 91, 0.22) 0%, transparent 48%),
         radial-gradient(circle at 86% 82%, rgba(139, 94, 60, 0.18) 0%, transparent 52%),
-        linear-gradient(135deg, rgba(10, 8, 7, {'0.88' if is_app else '0.58'}) 0%, rgba(14, 11, 9, {'0.80' if is_app else '0.78'}) 50%, rgba(10, 8, 7, {'0.91' if is_app else '0.90'}) 100%),
+        linear-gradient(135deg, rgba(10, 8, 7, {'0.88' if is_app else '0.62'}) 0%, rgba(14, 11, 9, {'0.80' if is_app else '0.78'}) 50%, rgba(10, 8, 7, {'0.91' if is_app else '0.92'}) 100%),
         url('{active_bg_url}');
     background-size: cover;
     background-position: center;
@@ -248,6 +248,7 @@ html(f"""<style>
     --subtle: #7A7168;
 }}
 
+/* Keyframe Animations */
 @keyframes staggerUp {{
     from {{ opacity: 0; transform: translateY(14px); }}
     to {{ opacity: 1; transform: translateY(0); }}
@@ -263,10 +264,56 @@ html(f"""<style>
     0%, 100% {{ box-shadow: 4px 0 18px rgba(139, 94, 60, 0.35); }}
     50% {{ box-shadow: 6px 0 28px rgba(196, 154, 108, 0.72); }}
 }}
+@keyframes floatBounce {{
+    0%, 100% {{ transform: translateY(0); opacity: 0.65; }}
+    50% {{ transform: translateY(8px); opacity: 1; }}
+}}
+
+/* Scroll-Driven Animations (Apple / ASUS Scroll Reveal) */
+@keyframes scrollRevealUp {{
+    0% {{ opacity: 0; transform: translateY(70px) scale(0.93); filter: blur(8px); }}
+    100% {{ opacity: 1; transform: translateY(0) scale(1); filter: blur(0px); }}
+}}
+@keyframes scrollRevealLeft {{
+    0% {{ opacity: 0; transform: translateX(-60px) scale(0.95); filter: blur(6px); }}
+    100% {{ opacity: 1; transform: translateX(0) scale(1); filter: blur(0px); }}
+}}
+@keyframes scrollRevealRight {{
+    0% {{ opacity: 0; transform: translateX(60px) scale(0.95); filter: blur(6px); }}
+    100% {{ opacity: 1; transform: translateX(0) scale(1); filter: blur(0px); }}
+}}
+@keyframes scrollScaleIn {{
+    0% {{ opacity: 0; transform: scale(0.86) translateY(40px); filter: blur(10px); }}
+    100% {{ opacity: 1; transform: scale(1) translateY(0); filter: blur(0px); }}
+}}
+
+@supports (animation-timeline: view()) {{
+    .sr-up {{
+        animation: scrollRevealUp linear both;
+        animation-timeline: view();
+        animation-range: entry 5% cover 30%;
+    }}
+    .sr-left {{
+        animation: scrollRevealLeft linear both;
+        animation-timeline: view();
+        animation-range: entry 8% cover 32%;
+    }}
+    .sr-right {{
+        animation: scrollRevealRight linear both;
+        animation-timeline: view();
+        animation-range: entry 8% cover 32%;
+    }}
+    .sr-scale {{
+        animation: scrollScaleIn linear both;
+        animation-timeline: view();
+        animation-range: entry 6% cover 32%;
+    }}
+}}
 
 html, body, .stApp, [data-testid="stMarkdownContainer"], input, textarea, button, label, select, div {{
     font-family: 'Gotham', 'Montserrat', -apple-system, BlinkMacSystemFont, sans-serif !important;
     -webkit-font-smoothing: antialiased;
+    scroll-behavior: smooth;
 }}
 header[data-testid="stHeader"],
 [data-testid="stHeaderActionElements"],
@@ -287,11 +334,11 @@ header[data-testid="stHeader"],
     z-index: 1;
 }}
 .block-container {{
-    max-width: 1060px !important;
+    max-width: 1080px !important;
     width: 100% !important;
     margin: 0 auto !important;
     padding-top: {'2rem' if is_app else '2.5rem'} !important;
-    padding-bottom: 3.5rem !important;
+    padding-bottom: 4rem !important;
     animation: staggerUp .35s cubic-bezier(0.16, 1, 0.3, 1);
 }}
 div.stMarkdown,
@@ -457,7 +504,7 @@ input:focus::placeholder, textarea:focus::placeholder {{
     font-weight: 600 !important;
     font-size: 13px !important;
     letter-spacing: -0.01em !important;
-    height: 40px !important;
+    height: 42px !important;
     padding: 0 14px !important;
     white-space: nowrap !important;
     transition: transform 0.16s cubic-bezier(0.34, 1.56, 0.64, 1), background 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease !important;
@@ -509,7 +556,7 @@ input:focus::placeholder, textarea:focus::placeholder {{
     border-color: var(--brown-light); background: var(--brown-soft);
 }}
 
-/* Landing Page Centered */
+/* ================= APPLE / ASUS SCROLLABLE LANDING PAGE STYLES ================= */
 .landing-wrap {{
     width: 100% !important;
     display: flex;
@@ -517,15 +564,15 @@ input:focus::placeholder, textarea:focus::placeholder {{
     align-items: center;
     justify-content: center;
     text-align: center !important;
-    margin: 9vh auto 26px !important;
-    animation: staggerUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+    margin: 12vh auto 28px !important;
+    animation: staggerUp 0.55s cubic-bezier(0.16, 1, 0.3, 1) both;
 }}
 .landing-eyebrow {{
     width: 100%;
     text-align: center !important;
     font-size: 11.5px;
     font-weight: 700;
-    letter-spacing: 0.18em;
+    letter-spacing: 0.2em;
     text-transform: uppercase;
     color: var(--brown-light);
     margin-bottom: 18px;
@@ -533,40 +580,203 @@ input:focus::placeholder, textarea:focus::placeholder {{
 .landing-title {{
     width: 100%;
     text-align: center !important;
-    font-size: clamp(40px, 5.5vw, 68px);
+    font-size: clamp(42px, 5.8vw, 72px);
     font-weight: 800;
     letter-spacing: -0.04em;
-    line-height: 1.05;
+    line-height: 1.04;
     color: #FFFFFF !important;
-    margin: 0 auto 20px !important;
+    margin: 0 auto 22px !important;
 }}
 .landing-sub {{
     width: 100%;
     max-width: 640px !important;
     text-align: center !important;
-    font-size: clamp(15px, 1.4vw, 17.5px);
-    line-height: 1.6;
+    font-size: clamp(15px, 1.4vw, 18px);
+    line-height: 1.65;
     color: rgba(245, 242, 235, 0.84);
-    margin: 0 auto 8px !important;
+    margin: 0 auto 10px !important;
 }}
-.pillar-card {{
-    background: rgba(18, 15, 13, 0.78);
+.scroll-cue {{
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    margin: 12vh auto 14vh;
+    animation: floatBounce 2.4s ease-in-out infinite;
+}}
+.scroll-cue-lbl {{
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 8px;
+}}
+.scroll-cue-line {{
+    width: 1px;
+    height: 44px;
+    background: linear-gradient(180deg, var(--brown-light), transparent);
+}}
+
+/* Section Headers on Scroll */
+.sec-head {{
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center !important;
+    margin: 110px auto 40px;
+}}
+.sec-eyebrow {{
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--brown-light);
+    margin-bottom: 12px;
+}}
+.sec-title {{
+    font-size: clamp(28px, 3.8vw, 46px);
+    font-weight: 800;
+    letter-spacing: -0.035em;
+    line-height: 1.08;
+    color: #FFFFFF;
+    margin-bottom: 14px;
+}}
+.sec-desc {{
+    max-width: 620px;
+    font-size: 15px;
+    line-height: 1.6;
+    color: var(--muted);
+}}
+
+/* Spec Bento Showcase (Section 2) */
+.spec-master {{
+    width: 100%;
+    box-sizing: border-box;
+    background: rgba(18, 14, 12, 0.84);
+    backdrop-filter: blur(28px);
+    border: 1px solid var(--border-strong);
+    border-radius: 18px;
+    padding: 36px 40px;
+    margin-bottom: 20px;
+    box-shadow: 0 30px 70px rgba(0, 0, 0, 0.65);
+}}
+.spec-grid-3 {{
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 18px;
+    width: 100%;
+}}
+.spec-box {{
+    background: rgba(18, 15, 13, 0.80);
     backdrop-filter: blur(24px);
     border: 1px solid var(--border);
     border-top: 2px solid var(--brown-light);
-    border-radius: 14px;
-    padding: 22px 24px;
-    height: 100%;
-    animation: staggerUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.15s both;
-    transition: transform 0.22s ease, border-color 0.22s ease, box-shadow 0.22s ease;
+    border-radius: 16px;
+    padding: 28px 26px;
+    transition: transform 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
 }}
-.pillar-card:hover {{
-    transform: translateY(-4px);
+.spec-box:hover {{
+    transform: translateY(-5px);
     border-color: var(--border-strong);
-    box-shadow: 0 20px 45px -15px rgba(0, 0, 0, 0.75);
+    box-shadow: 0 24px 50px -12px rgba(0, 0, 0, 0.8);
+}}
+.spec-big-num {{
+    font-size: clamp(38px, 4.2vw, 54px);
+    font-weight: 800;
+    letter-spacing: -0.04em;
+    color: #FFFFFF;
+    line-height: 1;
+    margin: 10px 0 12px;
 }}
 
-/* Clean Editorial Header (Digunakan Konsisten di Semua Halaman Stage 3) */
+/* Photographic Discipline Cards (Section 3) */
+.role-showcase-grid {{
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 18px;
+    width: 100%;
+}}
+.role-photo-card {{
+    position: relative;
+    height: 360px;
+    border-radius: 18px;
+    border: 1px solid var(--border);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    padding: 26px;
+    box-sizing: border-box;
+    box-shadow: 0 24px 55px rgba(0, 0, 0, 0.6);
+}}
+.role-photo-bg {{
+    position: absolute;
+    inset: 0;
+    background-size: cover;
+    background-position: center;
+    transition: transform 0.65s cubic-bezier(0.16, 1, 0.3, 1);
+    z-index: 0;
+}}
+.role-photo-card:hover .role-photo-bg {{
+    transform: scale(1.08);
+}}
+.role-photo-content {{
+    position: relative;
+    z-index: 1;
+}}
+
+/* Workflow Timeline & Arena Strip (Section 4) */
+.workflow-grid {{
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px;
+    width: 100%;
+    margin-bottom: 24px;
+}}
+.workflow-step {{
+    background: rgba(18, 15, 13, 0.80);
+    backdrop-filter: blur(22px);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 22px 20px;
+    transition: border-color 0.2s ease, transform 0.2s ease;
+}}
+.workflow-step:hover {{
+    border-color: var(--brown-light);
+    transform: translateY(-3px);
+}}
+.arena-strip {{
+    width: 100%;
+    box-sizing: border-box;
+    background: rgba(18, 14, 12, 0.82);
+    backdrop-filter: blur(24px);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 26px 32px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 16px;
+}}
+.landing-footer {{
+    width: 100%;
+    margin-top: 90px;
+    padding-top: 28px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 16px;
+    font-size: 12px;
+    color: var(--muted);
+}}
+
+/* Clean Editorial Header inside App */
 .catalog-header {{
     display: flex;
     justify-content: space-between;
@@ -578,8 +788,6 @@ input:focus::placeholder, textarea:focus::placeholder {{
     border-bottom: 1px solid var(--border);
     animation: staggerUp 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
 }}
-
-/* Squared Monogram & Rectangular Tags */
 .monogram {{
     flex: none; width: var(--s); height: var(--s); border-radius: 8px;
     background: var(--brown-soft); border: 1px solid var(--brown-light);
@@ -600,8 +808,7 @@ input:focus::placeholder, textarea:focus::placeholder {{
 .rect-tag.subtle {{
     background: rgba(255, 255, 255, 0.04); border-color: var(--border); color: var(--muted);
 }}
-
-.bar-track {{ height: 4px; border-radius: 2px; background: rgba(255,255,255,.10); overflow: hidden; margin: 12px 0; }}
+.bar-track {{ height: 5px; border-radius: 3px; background: rgba(255,255,255,.10); overflow: hidden; margin: 12px 0; }}
 .bar-fill {{
     display: block; height: 100%;
     background: linear-gradient(90deg, #8B5E3C, #D4A373);
@@ -610,9 +817,10 @@ input:focus::placeholder, textarea:focus::placeholder {{
 </style>""")
 
 # ==============================================================================
-# STAGE 1: CENTERED LANDING PAGE
+# STAGE 1: SCROLLABLE APPLE / ASUS SHOWCASE LANDING PAGE
 # ==============================================================================
 if curr_view == "landing":
+    # --- SECTION 1: HERO UTAMA (Above the Fold) ---
     html("""
         <div class="landing-wrap">
             <div class="landing-eyebrow">CARI TEMAN LOMBA &nbsp;·&nbsp; FASILKOM UI</div>
@@ -625,38 +833,225 @@ if curr_view == "landing":
 
     _, btn_left, btn_right, _ = st.columns([1.3, 0.7, 0.7, 1.3], gap="small")
     with btn_left:
-        if st.button("Log In", width="stretch", type="primary"):
+        if st.button("Log In", key="hero_login", width="stretch", type="primary"):
             set_view("login")
     with btn_right:
-        if st.button("Sign Up", width="stretch", type="secondary"):
+        if st.button("Sign Up", key="hero_signup", width="stretch", type="secondary"):
             set_view("signup")
 
-    st.markdown("<div style='height:38px'></div>", unsafe_allow_html=True)
-    p1, p2, p3 = st.columns(3, gap="medium")
-    with p1:
-        html("""
-            <div class="pillar-card">
-                <div style="font-size:11px;font-weight:700;letter-spacing:.1em;color:var(--brown-light);margin-bottom:4px;">BOBOT 50%</div>
-                <div style="font-size:17px;font-weight:800;color:#fff;">Skill Overlap</div>
-                <div style="font-size:12.5px;color:var(--muted);margin-top:4px;line-height:1.5;">Kesesuaian keahlian teknis & non-teknis yang dibobotkan menurut level pengalaman.</div>
+    html("""
+        <div class="scroll-cue">
+            <div class="scroll-cue-lbl">Scroll untuk Eksplorasi</div>
+            <div class="scroll-cue-line"></div>
+        </div>
+    """)
+
+    # --- SECTION 2: THE 50-30-20 MATCHING ENGINE (Scroll-Driven Spec Showcase) ---
+    html("""
+        <div class="sec-head sr-up">
+            <div class="sec-eyebrow">ALGORITMA PENCOCOKAN OBJEKTIF</div>
+            <div class="sec-title">Dirancang dengan presisi matematis.</div>
+            <div class="sec-desc">
+                Bukan sekadar daftar kontak. Setiap rekomendasi kandidat dihitung menggunakan pembobotan tiga variabel utama agar komposisi tim saling melengkapi.
             </div>
-        """)
-    with p2:
-        html("""
-            <div class="pillar-card">
-                <div style="font-size:11px;font-weight:700;letter-spacing:.1em;color:var(--brown-light);margin-bottom:4px;">BOBOT 30%</div>
-                <div style="font-size:17px;font-weight:800;color:#fff;">Role Fit</div>
-                <div style="font-size:12.5px;color:var(--muted);margin-top:4px;line-height:1.5;">Kecocokan peran spesifik yang dibutuhkan tim dalam suatu kategori kompetisi.</div>
+        </div>
+
+        <div class="spec-master sr-scale">
+            <div style="display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:16px;margin-bottom:18px;">
+                <div>
+                    <div style="font-size:11px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--brown-light);margin-bottom:6px;">FORMULA SKOR KECOCOKAN</div>
+                    <div style="font-size:clamp(20px, 2.5vw, 30px);font-weight:800;color:#fff;letter-spacing:-0.03em;">
+                        Score = (0.50 × Skill) + (0.30 × Role) + (0.20 × Time)
+                    </div>
+                </div>
+                <div style="font-size:13px;font-weight:700;color:var(--brown-light);background:var(--brown-soft);border:1px solid var(--border-strong);padding:6px 14px;border-radius:6px;">
+                    Diurutkan Otomatis dari Skor Tertinggi
+                </div>
             </div>
-        """)
-    with p3:
-        html("""
-            <div class="pillar-card">
-                <div style="font-size:11px;font-weight:700;letter-spacing:.1em;color:var(--brown-light);margin-bottom:4px;">BOBOT 20%</div>
-                <div style="font-size:17px;font-weight:800;color:#fff;">Time Overlap</div>
-                <div style="font-size:12.5px;color:var(--muted);margin-top:4px;line-height:1.5;">Irisan ketersediaan jadwal kerja kolaborasi antara kamu dan anggota tim.</div>
+            <div style="display:grid;grid-template-columns:5fr 3fr 2fr;gap:6px;height:10px;border-radius:99px;overflow:hidden;background:rgba(255,255,255,.06);">
+                <div style="background:linear-gradient(90deg,#8B5E3C,#C49A6C);"></div>
+                <div style="background:rgba(196,154,108,.65);"></div>
+                <div style="background:rgba(196,154,108,.35);"></div>
             </div>
-        """)
+            <div style="display:grid;grid-template-columns:5fr 3fr 2fr;gap:6px;margin-top:8px;font-size:11px;font-weight:700;color:var(--muted);">
+                <div>50% SKILL OVERLAP</div>
+                <div>30% ROLE FIT</div>
+                <div>20% TIME OVERLAP</div>
+            </div>
+        </div>
+
+        <div class="spec-grid-3">
+            <div class="spec-box sr-left">
+                <div style="font-size:11px;font-weight:700;letter-spacing:.14em;color:var(--brown-light);">VARIABEL 01</div>
+                <div class="spec-big-num">50%</div>
+                <div style="font-size:18px;font-weight:800;color:#fff;margin-bottom:8px;">Skill Overlap</div>
+                <div style="font-size:13px;color:var(--muted);line-height:1.6;">
+                    Mengukur irisan maupun komplementaritas keahlian teknis (Python, ML, UI/UX, Finance) yang dikalikan dengan bobot tingkat kemahiran: Pemula (60%), Menengah (80%), dan Mahir (100%).
+                </div>
+            </div>
+            <div class="spec-box sr-up">
+                <div style="font-size:11px;font-weight:700;letter-spacing:.14em;color:var(--brown-light);">VARIABEL 02</div>
+                <div class="spec-big-num">30%</div>
+                <div style="font-size:18px;font-weight:800;color:#fff;margin-bottom:8px;">Role Fit</div>
+                <div style="font-size:13px;color:var(--muted);line-height:1.6;">
+                    Memastikan tim tidak menumpuk di satu peran yang sama. Kandidat dengan peran yang sedang dibutuhkan oleh target kompetisimu mendapatkan prioritas skor tertinggi.
+                </div>
+            </div>
+            <div class="spec-box sr-right">
+                <div style="font-size:11px;font-weight:700;letter-spacing:.14em;color:var(--brown-light);">VARIABEL 03</div>
+                <div class="spec-big-num">20%</div>
+                <div style="font-size:18px;font-weight:800;color:#fff;margin-bottom:8px;">Time Overlap</div>
+                <div style="font-size:13px;color:var(--muted);line-height:1.6;">
+                    Mencocokkan ketersediaan waktu luang mingguan antara kamu dan calon rekan tim agar eksekusi proyek, riset, dan latihan pitching berjalan tanpa kendala jadwal.
+                </div>
+            </div>
+        </div>
+    """)
+
+    # --- SECTION 3: ANATOMI TIM JUARA (Photographic Discipline Cards) ---
+    html(f"""
+        <div class="sec-head sr-up">
+            <div class="sec-eyebrow">KOMPOSISI LINTAS DISIPLIN</div>
+            <div class="sec-title">Satu tim. Tiga kekuatan utama.</div>
+            <div class="sec-desc">
+                Kompetisi mahasiswa modern menuntut kolaborasi antara eksekusi kode, ketajaman analisis data, estetika antarmuka, dan strategi bisnis.
+            </div>
+        </div>
+
+        <div class="role-showcase-grid">
+            <div class="role-photo-card sr-left">
+                <div class="role-photo-bg" style="background-image:linear-gradient(180deg, rgba(10,8,7,.15) 0%, rgba(10,8,7,.94) 85%), url('{BG_PHOTOS['Kompetisi']}');"></div>
+                <div class="role-photo-content">
+                    <div style="font-size:10.5px;font-weight:700;letter-spacing:.14em;color:var(--brown-light);margin-bottom:6px;">HACKATHON &amp; SOFTWARE</div>
+                    <div style="font-size:22px;font-weight:800;color:#fff;margin-bottom:8px;letter-spacing:-0.02em;">Engineering &amp; Architecture</div>
+                    <div style="font-size:13px;color:var(--muted);line-height:1.55;margin-bottom:14px;">
+                        Membangun prototipe fungsional dari sisi frontend, arsitektur backend API, hingga keamanan siber dalam waktu terbatas.
+                    </div>
+                    <div>
+                        <span class="rect-tag">Fullstack Dev</span>
+                        <span class="rect-tag">Backend</span>
+                        <span class="rect-tag">Cyber Security</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="role-photo-card sr-up">
+                <div class="role-photo-bg" style="background-image:linear-gradient(180deg, rgba(10,8,7,.15) 0%, rgba(10,8,7,.94) 85%), url('{BG_PHOTOS['Profil']}');"></div>
+                <div class="role-photo-content">
+                    <div style="font-size:10.5px;font-weight:700;letter-spacing:.14em;color:var(--brown-light);margin-bottom:6px;">AI &amp; DATA SCIENCE</div>
+                    <div style="font-size:22px;font-weight:800;color:#fff;margin-bottom:8px;letter-spacing:-0.02em;">Intelligence &amp; Analytics</div>
+                    <div style="font-size:13px;color:var(--muted);line-height:1.55;margin-bottom:14px;">
+                        Mengolah dataset kompleks, melatih model machine learning prediktif, serta menerjemahkan metrik menjadi insight tajam.
+                    </div>
+                    <div>
+                        <span class="rect-tag">Machine Learning</span>
+                        <span class="rect-tag">Python</span>
+                        <span class="rect-tag">Data / ML Engineer</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="role-photo-card sr-right">
+                <div class="role-photo-bg" style="background-image:linear-gradient(180deg, rgba(10,8,7,.15) 0%, rgba(10,8,7,.94) 85%), url('{BG_PHOTOS['Tim Saya']}');"></div>
+                <div class="role-photo-content">
+                    <div style="font-size:10.5px;font-weight:700;letter-spacing:.14em;color:var(--brown-light);margin-bottom:6px;">PRODUCT, UI/UX &amp; BUSINESS</div>
+                    <div style="font-size:22px;font-weight:800;color:#fff;margin-bottom:8px;letter-spacing:-0.02em;">Design &amp; Deal-Making</div>
+                    <div style="font-size:13px;color:var(--muted);line-height:1.55;margin-bottom:14px;">
+                        Merancang pengalaman pengguna yang intuitif, menyusun proyeksi finansial, dan memukau dewan juri saat sesi pitching.
+                    </div>
+                    <div>
+                        <span class="rect-tag">UI/UX Design</span>
+                        <span class="rect-tag">Business Analysis</span>
+                        <span class="rect-tag">Pitching</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    """)
+
+    # --- SECTION 4: ALUR KERJA 4 LANGKAH & KOMPETISI TARGET ---
+    html("""
+        <div class="sec-head sr-up">
+            <div class="sec-eyebrow">ALUR KOLABORASI</div>
+            <div class="sec-title">Dari profil menuju podium.</div>
+            <div class="sec-desc">
+                Empat tahapan terstruktur untuk membantu kamu membangun tim impian tanpa membuang waktu mencari secara manual.
+            </div>
+        </div>
+
+        <div class="workflow-grid">
+            <div class="workflow-step sr-left">
+                <div style="font-size:12px;font-weight:800;color:var(--brown-light);margin-bottom:10px;">LANGKAH 01</div>
+                <div style="font-size:16.5px;font-weight:800;color:#fff;margin-bottom:6px;">Bangun Profil &amp; Skill</div>
+                <div style="font-size:12.5px;color:var(--muted);line-height:1.55;">
+                    Daftarkan akun, pilih peran utama, keahlian, tingkat kemahiran, jadwal luang, serta tautan portofolio GitHub atau LinkedIn.
+                </div>
+            </div>
+            <div class="workflow-step sr-up">
+                <div style="font-size:12px;font-weight:800;color:var(--brown-light);margin-bottom:10px;">LANGKAH 02</div>
+                <div style="font-size:16.5px;font-weight:800;color:#fff;margin-bottom:6px;">Pilih Target Kompetisi</div>
+                <div style="font-size:12.5px;color:var(--muted);line-height:1.55;">
+                    Telusuri katalog lomba aktif berdasarkan kategori bidang, batas waktu pendaftaran, kapasitas tim, dan daftar peran yang dicari.
+                </div>
+            </div>
+            <div class="workflow-step sr-up">
+                <div style="font-size:12px;font-weight:800;color:var(--brown-light);margin-bottom:10px;">LANGKAH 03</div>
+                <div style="font-size:16.5px;font-weight:800;color:#fff;margin-bottom:6px;">Analisis Peringkat Rekan</div>
+                <div style="font-size:12.5px;color:var(--muted);line-height:1.55;">
+                    Dapatkan daftar rekomendasi kandidat yang telah diurutkan otomatis berdasarkan skor kecocokan tertinggi untuk lomba pilihanmu.
+                </div>
+            </div>
+            <div class="workflow-step sr-right">
+                <div style="font-size:12px;font-weight:800;color:var(--brown-light);margin-bottom:10px;">LANGKAH 04</div>
+                <div style="font-size:16.5px;font-weight:800;color:#fff;margin-bottom:6px;">Bentuk &amp; Gabung Tim</div>
+                <div style="font-size:12.5px;color:var(--muted);line-height:1.55;">
+                    Buka rekrutmen tim barumu sendiri atau langsung bergabung ke tim terbuka dan hubungi rekan lewat tautan WhatsApp/LinkedIn.
+                </div>
+            </div>
+        </div>
+
+        <div class="arena-strip sr-scale">
+            <div>
+                <div style="font-size:10.5px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--brown-light);margin-bottom:4px;">DIREKTORI AJANG KOMPETISI MAHASISWA</div>
+                <div style="font-size:18px;font-weight:800;color:#fff;">Siap digunakan untuk berbagai kompetisi tingkat nasional.</div>
+            </div>
+            <div style="display:flex;flex-wrap:wrap;gap:8px;">
+                <span class="rect-tag">GEMASTIK</span>
+                <span class="rect-tag">COMPFEST UI</span>
+                <span class="rect-tag">Arkavidia ITB</span>
+                <span class="rect-tag">Find IT! UGM</span>
+                <span class="rect-tag">National Business Case</span>
+                <span class="rect-tag">ICPC Regional</span>
+            </div>
+        </div>
+    """)
+
+    # --- SECTION 5: BOTTOM CTA & OFFICIAL FOOTER ---
+    html("""
+        <div class="sec-head sr-up" style="margin-top:90px;margin-bottom:24px;">
+            <div class="sec-eyebrow">MULAI KOLABORASI SEKARANG</div>
+            <div class="sec-title" style="font-size:clamp(26px, 3.2vw, 40px);">Siap menemukan rekan tim terbaikmu?</div>
+        </div>
+    """)
+
+    _, b_bot_l, b_bot_r, _ = st.columns([1.3, 0.7, 0.7, 1.3], gap="small")
+    with b_bot_l:
+        if st.button("Masuk ke Akun", key="footer_login", width="stretch", type="primary"):
+            set_view("login")
+    with b_bot_r:
+        if st.button("Daftar Akun Baru", key="footer_signup", width="stretch", type="secondary"):
+            set_view("signup")
+
+    html("""
+        <div class="landing-footer">
+            <div>
+                <b style="color:#fff;">Cari Teman Lomba</b> &nbsp;·&nbsp; Tugas Akhir DDP 1 (G) Fasilkom Universitas Indonesia
+            </div>
+            <div>
+                Kelompok 17: Haris Zidan &nbsp;·&nbsp; Farraj Bagas Alamsyah &nbsp;·&nbsp; Muhammad Nur Ataya
+            </div>
+        </div>
+    """)
 
 # ==============================================================================
 # STAGE 2A: DEDICATED LOG IN PAGE
@@ -765,7 +1160,7 @@ else:
             set_view("landing")
 
     # --------------------------------------------------------------------------
-    # HALAMAN 1: PROFIL (Clean Header + Form 2 Kolom + Kartu Identitas Ringkas)
+    # HALAMAN 1: PROFIL
     # --------------------------------------------------------------------------
     if page == "Profil":
         status_label = "Profil Aktif" if (prof["name"] and prof["skills"]) else "Belum Lengkap"
@@ -934,7 +1329,7 @@ else:
                         st.rerun()
 
     # --------------------------------------------------------------------------
-    # HALAMAN 3: REKOMENDASI (Clean Header + 1-Line Toolbar + Kartu Rapi Selevel Kompetisi)
+    # HALAMAN 3: REKOMENDASI
     # --------------------------------------------------------------------------
     elif page == "Rekomendasi":
         candidates = st.session_state.candidates
