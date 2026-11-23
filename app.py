@@ -11,11 +11,14 @@ with open(BASE_DIR / "settings.toml", "rb") as f:
 st.set_page_config(
     page_title=cfg["title"],
     page_icon=cfg["icon"],
-    layout=cfg["default_layout"],
-    initial_sidebar_state=cfg["default_sidebar_state"],
+    layout="wide",
+    initial_sidebar_state="collapsed",
 )
 
-# 1. State Initialization (tanpa data dummy)
+# 1. State Initialization (tanpa data dummy bawaan)
+st.session_state.setdefault("view", "landing")  # "landing" | "login" | "signup" | "app"
+st.session_state.setdefault("accounts", {})
+st.session_state.setdefault("active_page", "Profil")
 st.session_state.setdefault("user_profile", {
     "name": "", "major": "", "year": 2026, "campus": "",
     "skills": [], "level": "Menengah", "availability": "", "portfolio": ""
@@ -25,454 +28,647 @@ st.session_state.setdefault("candidates", [])
 
 SKILL_OPTS = ["Python", "Machine Learning", "UI/UX", "Frontend/Web", "Business Analysis", "Finance", "Public Speaking", "Pitching", "Backend", "Cyber Security"]
 CAT_OPTS = ["Hackathon", "Business Case", "UI/UX Design", "Data Science", "Competitive Programming"]
+PAGES = ["Profil", "Eksplorasi Lomba", "Rekomendasi Tim"]
 
-PAGE_THEMES = {
-    "👤 Profil Saya": {
-        "p1": "#6366F1", "p2": "#A855F7", "tint": "rgba(99, 102, 241, .15)",
-        "hero": "linear-gradient(130deg, #1E1B4B 0%, #312E81 50%, #581C87 100%)",
-        "wm": "👤", "tag": "STEP 01 • IDENTITY STUDIO",
-    },
-    "📅 Eksplorasi Lomba": {
-        "p1": "#06B6D4", "p2": "#10B981", "tint": "rgba(6, 182, 212, .15)",
-        "hero": "linear-gradient(130deg, #042F2E 0%, #0F766E 50%, #155E75 100%)",
-        "wm": "🏆", "tag": "STEP 02 • COMPETITION HUB",
-    },
-    "🤝 Rekomendasi Teman": {
-        "p1": "#F59E0B", "p2": "#EC4899", "tint": "rgba(245, 158, 11, .15)",
-        "hero": "linear-gradient(130deg, #451A03 0%, #831843 55%, #7C2D12 100%)",
-        "wm": "⚡", "tag": "STEP 03 • SMART MATCHING",
-    },
+BG_PHOTOS = {
+    "auth": "https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=2000&q=85",
+    "Profil": "https://images.unsplash.com/photo-1531482615713-2afd69097998?auto=format&fit=crop&w=1800&q=80",
+    "Eksplorasi Lomba": "https://images.unsplash.com/photo-1540575467063-178a50c2df87?auto=format&fit=crop&w=1800&q=80",
+    "Rekomendasi Tim": "https://images.unsplash.com/photo-1515187029135-18ee286d815b?auto=format&fit=crop&w=1800&q=80",
 }
 
 # 2. UI Helpers
 def html(markup: str) -> None:
     st.markdown(" ".join(line.strip() for line in markup.splitlines() if line.strip()), unsafe_allow_html=True)
 
-def avatar(name: str, size: int = 40) -> str:
-    return f'<div class="avatar" style="--s:{size}px">{esc((name or "?")[:1].upper())}</div>'
+def set_view(target: str) -> None:
+    st.session_state.view = target
+    st.rerun()
+
+def avatar(name: str, size: int = 42) -> str:
+    ch = esc((name or "?")[:1].upper())
+    return f'<div class="apple-avatar" style="--s:{size}px">{ch}</div>'
 
 def badges(items: list) -> str:
-    return "".join(f'<span class="skill-badge">{esc(s)}</span>' for s in items)
+    return "".join(f'<span class="pill-tag">{esc(s)}</span>' for s in items)
 
 def safe_url(url: str) -> str:
     u = url.strip()
     return u if u.startswith(("http://", "https://")) else f"https://{u}"
 
-def hero(title: str, subtitle: str, extra_html: str = "") -> None:
-    t = PAGE_THEMES[page]
+def page_hero(eyebrow: str, title: str, subtitle: str, photo_url: str, pill_text: str = "") -> None:
+    pill_html = f'<div class="hero-pill">{esc(pill_text)}</div>' if pill_text else ""
     html(f"""
-        <div class="hero-banner" data-wm="{t['wm']}">
-            <div class="row between" style="flex-wrap:wrap;gap:16px">
+        <div class="apple-hero" style="background-image: linear-gradient(95deg, rgba(8,8,10,.90) 0%, rgba(8,8,10,.62) 55%, rgba(8,8,10,.40) 100%), url('{photo_url}');">
+            <div class="hero-inner">
                 <div>
-                    <span class="hero-tag">{esc(t['tag'])}</span>
-                    <h1 class="hero-title">{esc(title)}</h1>
-                    <p class="hero-subtitle">{esc(subtitle)}</p>
+                    <div class="hero-eyebrow">{esc(eyebrow)}</div>
+                    <h1 class="hero-h1">{esc(title)}</h1>
+                    <p class="hero-p">{esc(subtitle)}</p>
                 </div>
-                {extra_html}
+                {pill_html}
             </div>
         </div>
     """)
 
-def empty_box(icon: str, title: str, desc: str) -> None:
-    html(f'<div class="empty-box"><div class="empty-icon">{icon}</div><div class="empty-title">{title}</div><div class="empty-desc">{desc}</div></div>')
+# 3. Apple Website + Gotham CSS
+curr_view = st.session_state.view
+is_app = curr_view == "app"
 
-# 3. Sidebar Navigation
-prof = st.session_state.user_profile
-with st.sidebar:
-    html('<div class="row" style="margin-bottom:14px"><span style="font-size:28px">🏆</span><div><div style="font-size:18px;font-weight:800;line-height:1.15">Cari Teman Lomba</div><div class="sub">Kelompok 17 • DDP 1 Fasilkom UI</div></div></div>')
-    page = st.radio("Navigasi", list(PAGE_THEMES.keys()), label_visibility="collapsed")
-    st.divider()
-    if prof["name"]:
-        html(f"""
-            <div class="side-card ok">
-                <div class="row">
-                    {avatar(prof["name"], 38)}
-                    <div style="min-width:0">
-                        <div class="name" style="font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{esc(prof["name"])}</div>
-                        <div class="sub" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{esc(prof["campus"] or "Mahasiswa")}</div>
-                    </div>
-                </div>
-                <div class="status-on">● Profil aktif ({len(prof["skills"])} skill)</div>
-            </div>
-        """)
-    else:
-        html("""
-            <div class="side-card warn">
-                <div class="row" style="align-items:flex-start;gap:10px">
-                    <div class="side-warn-icon">⚠️</div>
-                    <div>
-                        <div style="font-size:13px;font-weight:700;color:#FBBF24;line-height:1.25">Profil Belum Lengkap</div>
-                        <div class="sub" style="margin-top:4px;line-height:1.45">Isi nama & minimal 1 skill di menu Profil Saya.</div>
-                    </div>
-                </div>
-            </div>
-        """)
-    st.caption("Fasilkom UI © 2026")
+bg_css = f"""
+.stApp {{
+    background-image: radial-gradient(circle at 50% 35%, rgba(0, 0, 0, .52) 0%, rgba(0, 0, 0, .86) 100%), url('{BG_PHOTOS["auth"]}');
+    background-size: cover;
+    background-position: center;
+    background-attachment: fixed;
+}}
+""" if not is_app else """
+.stApp { background: #08080A; }
+"""
 
-# 4. Dynamic Theme, Spacing & Click Animations CSS
-t = PAGE_THEMES[page]
 html(f"""<style>
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.cdnfonts.com/css/gotham-6');
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap');
+
 :root {{
-    color-scheme: dark; --bg: #0D0E1C; --surface: #171930; --border: #282B4E;
-    --ink: #F8FAFC; --muted: #94A3B8; --success: #34D399;
-    --primary: {t['p1']}; --accent: {t['p2']}; --tint: {t['tint']}; --hero-bg: {t['hero']};
-}}
-@keyframes pageIn {{ from {{ opacity: 0; transform: translateY(10px); }} to {{ opacity: 1; transform: translateY(0); }} }}
-@keyframes growBar {{ from {{ width: 0; }} }}
-@keyframes pulseRing {{ 0% {{ box-shadow: 0 0 0 0 var(--tint); }} 70% {{ box-shadow: 0 0 0 10px transparent; }} 100% {{ box-shadow: 0 0 0 0 transparent; }} }}
-
-html, body, .stApp, [data-testid="stMarkdownContainer"], input, textarea, button, label {{ font-family: 'Plus Jakarta Sans', sans-serif; }}
-.stApp {{ background: radial-gradient(circle at 85% 0%, var(--tint), transparent 45%), var(--bg); color: var(--ink); }}
-header[data-testid="stHeader"] {{ background: transparent; }}
-.block-container {{ max-width: 1160px; padding-top: 1.5rem; padding-bottom: 2.5rem; animation: pageIn .35s cubic-bezier(.22, 1, .36, 1); }}
-[data-testid="stHorizontalBlock"] {{ gap: 1.35rem !important; align-items: stretch; }}
-[data-testid="stMarkdownContainer"] h4 {{ margin: 0 0 .5rem 0 !important; padding: 0 !important; font-weight: 700 !important; }}
-
-/* Sidebar & Radio Click Animation */
-[data-testid="stSidebar"] {{ background: var(--surface); border-right: 1px solid var(--border); }}
-[data-testid="stSidebar"] [role="radiogroup"] label {{
-    padding: 11px 14px; border-radius: 12px; border: 1px solid transparent;
-    transition: transform .15s cubic-bezier(.34,1.56,.64,1), background .2s, border-color .2s, box-shadow .2s;
-    cursor: pointer; user-select: none;
-}}
-[data-testid="stSidebar"] [role="radiogroup"] label:hover {{ background: rgba(255,255,255,.04); transform: translateX(3px); }}
-[data-testid="stSidebar"] [role="radiogroup"] label:active {{ transform: scale(.95) !important; background: var(--tint); }}
-[data-testid="stSidebar"] [role="radiogroup"] label:has(input:checked) {{
-    background: var(--tint); border-color: var(--primary);
-    box-shadow: inset 4px 0 0 var(--primary), 0 6px 20px -8px var(--primary); font-weight: 700;
+    color-scheme: dark;
+    --bg: #08080A;
+    --card: rgba(20, 20, 24, 0.78);
+    --surface: #121216;
+    --surface-2: #1A1A20;
+    --border: rgba(255, 255, 255, 0.14);
+    --border-strong: rgba(255, 255, 255, 0.30);
+    --ink: #F5F5F7;
+    --muted: #A1A1A6;
+    --subtle: #6E6E73;
 }}
 
-/* Sidebar Status Card (Anti-nabrak, padding simetris) */
-.side-card {{
-    background: rgba(10, 11, 24, .6); border: 1px solid var(--border);
-    border-radius: 14px; padding: 14px 15px; margin: 2px 0 10px;
-}}
-.side-card.warn {{ border-color: rgba(251, 191, 36, .3); background: rgba(251, 191, 36, .05); }}
-.side-card.ok {{ border-color: rgba(52, 211, 153, .3); }}
-.side-warn-icon {{
-    flex: none; width: 30px; height: 30px; border-radius: 8px;
-    background: rgba(251, 191, 36, .14); display: flex; align-items: center; justify-content: center; font-size: 14px;
+@keyframes pageFade {{
+    from {{ opacity: 0; transform: translateY(14px) scale(0.995); }}
+    to {{ opacity: 1; transform: translateY(0) scale(1); }}
 }}
 
-/* Tactile Click Animations for Buttons, Links, Tabs & Expanders */
-.stButton > button, .stFormSubmitButton > button, .stLinkButton > a, .btn-link, [data-baseweb="tab"], [data-testid="stExpander"] summary {{
-    transition: transform .14s cubic-bezier(.34, 1.56, .64, 1), box-shadow .2s ease, border-color .2s ease, filter .2s !important;
-    border-radius: 12px !important;
+html, body, .stApp, [data-testid="stMarkdownContainer"], input, textarea, button, label, select, div {{
+    font-family: 'Gotham', 'Montserrat', -apple-system, BlinkMacSystemFont, sans-serif !important;
+    -webkit-font-smoothing: antialiased;
 }}
-.stButton > button:hover, .stFormSubmitButton > button:hover, .stLinkButton > a:hover, .btn-link:hover {{
-    transform: translateY(-2px); box-shadow: 0 8px 22px -6px var(--primary) !important; border-color: var(--primary) !important;
+[data-testid="stSidebar"], [data-testid="stSidebarCollapsedControl"], header[data-testid="stHeader"] {{
+    display: none !important;
 }}
-.stButton > button:active, .stFormSubmitButton > button:active, .stLinkButton > a:active, .btn-link:active,
-[data-baseweb="tab"]:active, [data-testid="stExpander"] summary:active {{
-    transform: scale(.95) translateY(1px) !important;
-    box-shadow: 0 0 0 5px var(--tint), 0 2px 10px var(--primary) !important;
-    filter: brightness(1.12);
+{bg_css}
+.block-container {{
+    max-width: 1140px;
+    padding-top: {'1.25rem' if is_app else '2.5rem'};
+    padding-bottom: 3.5rem;
+    animation: pageFade .35s cubic-bezier(0.16, 1, 0.3, 1);
+}}
+[data-testid="stHorizontalBlock"] {{ gap: 1.15rem !important; align-items: center; }}
+[data-testid="stMarkdownContainer"] h4 {{
+    font-size: 17px !important; font-weight: 700 !important;
+    letter-spacing: -0.025em !important; color: var(--ink) !important;
+    margin: 0 0 .5rem 0 !important;
+}}
+
+/* Frosted Glass Cards & Forms */
+.glass-card, [data-testid="stForm"] {{
+    background: var(--card) !important;
+    backdrop-filter: blur(30px) saturate(180%) !important;
+    -webkit-backdrop-filter: blur(30px) saturate(180%) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: 26px !important;
+    padding: 30px 32px !important;
+    box-shadow: 0 28px 65px rgba(0, 0, 0, 0.55) !important;
+    transition: transform .2s cubic-bezier(0.16, 1, 0.3, 1), border-color .2s ease !important;
+}}
+.glass-card.hoverable:hover {{
+    transform: translateY(-3px);
+    border-color: var(--border-strong) !important;
+}}
+.glass-card.hoverable:active {{
+    transform: scale(0.99);
+}}
+
+/* Inputs */
+[data-baseweb="input"] > div, [data-baseweb="select"] > div, [data-baseweb="textarea"] > div {{
+    background: rgba(255, 255, 255, 0.06) !important;
+    border: 1px solid rgba(255, 255, 255, 0.15) !important;
+    border-radius: 14px !important;
+    color: var(--ink) !important;
+    transition: border-color .15s ease, background .15s ease !important;
+}}
+[data-baseweb="input"] > div:focus-within, [data-baseweb="select"] > div:focus-within {{
+    border-color: #FFFFFF !important;
+    background: rgba(255, 255, 255, 0.11) !important;
+}}
+
+/* Apple Pill Buttons & Click Animation */
+.stButton > button, .stFormSubmitButton > button, .pill-link {{
+    border-radius: 980px !important;
+    font-weight: 700 !important;
+    font-size: 13.5px !important;
+    letter-spacing: -0.01em !important;
+    height: 44px !important;
+    padding: 0 1.4rem !important;
+    transition: transform .12s cubic-bezier(0.34, 1.56, 0.64, 1), background .18s ease, border-color .18s ease, box-shadow .18s ease !important;
+}}
+.stButton > button:hover, .stFormSubmitButton > button:hover, .pill-link:hover {{
+    transform: translateY(-1px) scale(1.015);
+}}
+.stButton > button:active, .stFormSubmitButton > button:active, .pill-link:active {{
+    transform: scale(0.96) translateY(1px) !important;
 }}
 [data-testid^="stBaseButton-primary"] {{
-    background: linear-gradient(135deg, var(--primary), var(--accent)) !important;
-    border: none !important; color: #fff !important; font-weight: 700 !important;
-    margin-top: .4rem !important;
+    background: #FFFFFF !important;
+    color: #000000 !important;
+    border: 1px solid #FFFFFF !important;
+    box-shadow: 0 10px 25px -6px rgba(255, 255, 255, 0.35) !important;
 }}
-.btn-link {{
-    display: block; text-align: center; text-decoration: none !important;
-    background: rgba(255,255,255,.05); border: 1px solid var(--border);
-    color: var(--ink) !important; padding: 10px 16px; font-size: 13.5px; font-weight: 600; margin-top: 12px;
+[data-testid^="stBaseButton-primary"] * {{
+    color: #000000 !important;
+    font-weight: 700 !important;
+}}
+[data-testid^="stBaseButton-primary"]:hover {{
+    background: #E8E8ED !important;
+}}
+[data-testid^="stBaseButton-secondary"] {{
+    background: rgba(255, 255, 255, 0.10) !important;
+    backdrop-filter: blur(16px) !important;
+    color: #FFFFFF !important;
+    border: 1px solid rgba(255, 255, 255, 0.24) !important;
+}}
+[data-testid^="stBaseButton-secondary"]:hover {{
+    background: rgba(255, 255, 255, 0.18) !important;
+    border-color: rgba(255, 255, 255, 0.45) !important;
+}}
+.pill-link {{
+    display: flex; align-items: center; justify-content: center;
+    text-decoration: none !important;
+    background: #FFFFFF; color: #000000 !important;
+    margin-top: 16px;
 }}
 
-/* Hero Banner */
-.hero-banner {{
-    position: relative; overflow: hidden; background: var(--hero-bg); border-radius: 20px;
-    padding: 26px 32px; margin-bottom: 14px; border: 1px solid rgba(255,255,255,.14);
-    box-shadow: 0 18px 40px -24px var(--primary);
+/* Landing Hero Centered */
+.landing-wrap {{
+    text-align: center;
+    max-width: 780px;
+    margin: 11vh auto 28px;
+    padding: 0 16px;
 }}
-.hero-banner::after {{
-    content: attr(data-wm); position: absolute; right: 24px; bottom: -18px;
-    font-size: 108px; opacity: .09; pointer-events: none;
+.landing-badge {{
+    display: inline-block;
+    background: rgba(255, 255, 255, 0.12);
+    backdrop-filter: blur(14px);
+    border: 1px solid rgba(255, 255, 255, 0.22);
+    padding: 7px 18px;
+    border-radius: 980px;
+    font-size: 11.5px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: #FFFFFF;
+    margin-bottom: 24px;
 }}
-.hero-tag {{ display: inline-block; background: rgba(255,255,255,.15); padding: 4px 12px; border-radius: 999px; font-size: 11px; font-weight: 800; letter-spacing: .7px; margin-bottom: 8px; }}
-.hero-title {{ font-size: clamp(22px, 2.6vw, 30px); font-weight: 800; margin: 0; color: #fff !important; }}
-.hero-subtitle {{ font-size: 13.5px; color: rgba(255,255,255,.82); margin: 6px 0 0; max-width: 58ch; }}
-.hero-stat {{ background: rgba(13, 14, 28, .38); border: 1px solid rgba(255,255,255,.16); border-radius: 14px; padding: 12px 18px; min-width: 185px; backdrop-filter: blur(8px); }}
+.landing-title {{
+    font-size: clamp(42px, 6vw, 72px);
+    font-weight: 800;
+    letter-spacing: -0.04em;
+    line-height: 1.04;
+    color: #FFFFFF !important;
+    margin: 0 0 22px 0;
+}}
+.landing-sub {{
+    font-size: clamp(15px, 1.6vw, 18.5px);
+    line-height: 1.6;
+    color: rgba(245, 245, 247, 0.82);
+    max-width: 54ch;
+    margin: 0 auto 12px;
+    font-weight: 400;
+}}
 
-/* Self-Contained UI Card & Form (Padding simetris, bebas nabrak border) */
-.ui-card, [data-testid="stForm"] {{
-    background: var(--surface) !important; border: 1px solid var(--border) !important;
-    border-radius: 18px !important; padding: 24px 26px !important;
-    box-sizing: border-box;
-    transition: transform .22s cubic-bezier(.34,1.56,.64,1), border-color .22s, box-shadow .22s;
+/* Editorial Photographic Hero inside App */
+.apple-hero {{
+    background-size: cover;
+    background-position: center;
+    border-radius: 26px;
+    border: 1px solid var(--border);
+    padding: 42px 40px;
+    margin: 14px 0 24px;
+    box-shadow: 0 26px 55px -20px rgba(0, 0, 0, 0.75);
 }}
-.ui-card:hover {{
-    transform: translateY(-3px); border-color: var(--primary) !important; box-shadow: 0 14px 30px -18px var(--primary);
+.hero-inner {{
+    display: flex; align-items: flex-end; justify-content: space-between;
+    flex-wrap: wrap; gap: 20px;
 }}
-.ui-card:active {{ transform: scale(.985); }}
-.card-title {{ font-size: 18px; font-weight: 700; margin: 0 0 16px 0; display: flex; align-items: center; gap: 8px; color: var(--ink); }}
+.hero-eyebrow {{
+    font-size: 11px; font-weight: 700; letter-spacing: 0.14em;
+    text-transform: uppercase; color: rgba(255, 255, 255, 0.7); margin-bottom: 8px;
+}}
+.hero-h1 {{
+    font-size: clamp(26px, 3.4vw, 42px); font-weight: 800;
+    letter-spacing: -0.035em; line-height: 1.08; color: #FFFFFF !important; margin: 0;
+}}
+.hero-p {{
+    font-size: 14.5px; color: rgba(245, 245, 247, 0.80);
+    max-width: 52ch; margin: 10px 0 0; line-height: 1.55;
+}}
+.hero-pill {{
+    background: rgba(255, 255, 255, 0.14);
+    backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.24);
+    padding: 9px 18px; border-radius: 980px;
+    font-size: 12.5px; font-weight: 700; color: #FFFFFF;
+}}
 
-[data-testid="stMetric"] {{
-    background: linear-gradient(180deg, var(--tint), var(--surface));
-    border: 1px solid var(--border); border-top: 3px solid var(--primary);
-    border-radius: 16px; padding: 14px 18px; transition: transform .2s;
+/* Micro Components */
+.apple-avatar {{
+    flex: none; width: var(--s); height: var(--s); border-radius: 50%;
+    background: var(--surface-2); border: 1px solid var(--border-strong);
+    display: flex; align-items: center; justify-content: center;
+    color: #FFFFFF; font-weight: 800; font-size: calc(var(--s) * 0.4);
 }}
-[data-testid="stMetric"]:hover {{ transform: translateY(-2px); border-color: var(--primary); }}
-
-/* Components & Badges */
-.avatar {{ flex: none; width: var(--s); height: var(--s); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 800; font-size: calc(var(--s)*.42); background: linear-gradient(135deg, var(--primary), var(--accent)); box-shadow: 0 4px 14px -4px var(--primary); }}
-.skill-badge {{ display: inline-block; background: var(--tint); color: #E2E8F0; border: 1px solid rgba(255,255,255,.18); padding: 4px 11px; border-radius: 999px; font-size: 12px; font-weight: 600; margin: 3px 6px 3px 0; transition: transform .15s, border-color .15s; cursor: pointer; }}
-.skill-badge:hover {{ transform: scale(1.05); border-color: var(--primary); }}
-.skill-badge:active {{ transform: scale(.93); }}
-.match-badge {{ background: rgba(52,211,153,.15); color: #6EE7B7; border: 1px solid rgba(52,211,153,.4); padding: 4px 11px; border-radius: 999px; font-size: 12px; font-weight: 700; }}
-.match-badge.top {{ background: rgba(251,191,36,.18); color: #FDE68A; border-color: #F59E0B; animation: pulseRing 2s infinite; }}
-.bar-track {{ height: 7px; border-radius: 999px; background: rgba(255,255,255,.1); overflow: hidden; margin: 10px 0 12px; }}
-.bar-fill {{ display: block; height: 100%; background: linear-gradient(90deg, var(--primary), var(--accent)); animation: growBar .7s ease-out; }}
-
-/* Page 1: ID Pass Elements */
-.id-header {{
-    background: linear-gradient(90deg, var(--primary), var(--accent));
-    border-radius: 12px; padding: 10px 14px; margin-bottom: 16px;
-    display: flex; align-items: center; justify-content: space-between;
-    font-size: 11px; font-weight: 800; letter-spacing: .8px; color: #fff;
+.pill-tag {{
+    display: inline-block; background: rgba(255, 255, 255, 0.08);
+    color: var(--ink); border: 1px solid var(--border);
+    padding: 5px 13px; border-radius: 980px;
+    font-size: 12px; font-weight: 600; margin: 3px 6px 3px 0;
+    transition: background .15s ease, transform .1s ease;
 }}
-.id-meta-grid {{ display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 16px 0; }}
-.id-meta-box {{
-    background: rgba(255,255,255,.035); border: 1px solid rgba(255,255,255,.07);
-    border-radius: 12px; padding: 11px 13px;
+.pill-tag:hover {{ background: rgba(255, 255, 255, 0.16); transform: translateY(-1px); }}
+.kv-row {{
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 12px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.08); font-size: 13.5px;
 }}
-.id-section {{
-    background: rgba(255,255,255,.025); border: 1px solid rgba(255,255,255,.06);
-    border-radius: 12px; padding: 13px 15px;
+.kv-row:last-child {{ border-bottom: none; }}
+.bento-stat {{
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 22px; padding: 22px 26px;
 }}
-.check-item {{ display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--muted); padding: 5px 0; }}
-
-/* Page 2: Ticket Elements */
-.ticket-head {{ border-left: 4px solid var(--primary); padding-left: 12px; margin-top: 10px; }}
-.ddl-pill {{ background: rgba(16, 185, 129, .14); color: #6EE7B7; border: 1px solid rgba(16, 185, 129, .35); padding: 3px 10px; border-radius: 8px; font-size: 11px; font-weight: 700; }}
-
-.name {{ font-size: 15.5px; font-weight: 700; line-height: 1.3; }}
-.sub {{ font-size: 12px; color: var(--muted); line-height: 1.45; }}
-.row {{ display: flex; align-items: center; gap: 12px; }}
-.row.between {{ justify-content: space-between; }}
-.status-on {{ margin-top: 10px; font-size: 12px; color: var(--success); font-weight: 600; }}
-.empty-box {{ text-align: center; padding: 34px 22px; border: 1.5px dashed rgba(148, 163, 184, .28); border-radius: 14px; background: rgba(255,255,255,.018); }}
-.empty-icon {{ font-size: 36px; margin-bottom: 10px; }}
-.empty-title {{ font-size: 15.5px; font-weight: 700; margin-bottom: 6px; color: var(--ink); }}
-.empty-desc {{ font-size: 12.5px; color: var(--muted); max-width: 38ch; margin: 0 auto; line-height: 1.55; }}
+.bento-num {{
+    font-size: 34px; font-weight: 800; letter-spacing: -0.03em;
+    color: #FFFFFF; line-height: 1.1; margin-top: 6px;
+}}
+.bar-track {{ height: 6px; border-radius: 980px; background: rgba(255,255,255,.1); overflow: hidden; margin: 14px 0; }}
+.bar-fill {{ display: block; height: 100%; background: #FFFFFF; border-radius: 980px; }}
 </style>""")
 
 # ==============================================================================
-# HALAMAN 1: PROFIL SAYA (Tema Indigo-Violet • Layout Studio & Digital ID Pass)
+# STAGE 1: CENTERED LANDING PAGE (Slogan di Tengah + Tombol Kiri Log In, Kanan Sign Up)
 # ==============================================================================
-if "Profil Saya" in page:
-    filled = sum(bool(prof[k]) for k in ("name", "campus", "major", "skills", "availability", "portfolio"))
-    pct = int(filled / 6 * 100)
-    hero(
-        "Atur Profil Kolaborasimu",
-        "Bangun kartu identitas akademik & keahlianmu untuk mempermudah pencocokan tim.",
-        f'<div class="hero-stat"><div class="sub" style="color:#E2E8F0">Kelengkapan Profil</div><div style="font-size:20px;font-weight:800;margin:2px 0">{pct}% Lengkap</div><div class="bar-track" style="margin:6px 0 0"><span class="bar-fill" style="width:{pct}%"></span></div></div>'
-    )
-    col_form, col_prev = st.columns([1.15, 0.85], gap="medium")
+if curr_view == "landing":
+    html("""
+        <div class="landing-wrap">
+            <span class="landing-badge">Cari Teman Lomba &nbsp;·&nbsp; Fasilkom UI</span>
+            <h1 class="landing-title">Bangun Tim Terbaik.<br>Menangkan Kompetisi.</h1>
+            <p class="landing-sub">
+                Platform kolaborasi mahasiswa untuk menemukan rekan satu frekuensi di ajang Hackathon, Business Case, UI/UX Design, dan Data Science.
+            </p>
+        </div>
+    """)
 
-    with col_form, st.form("profile_form"):
-        st.markdown("#### 📝 Studio Data Diri & Keahlian")
-        name = st.text_input("Nama Lengkap*", value=prof["name"], placeholder="Contoh: Farraj Bagas")
-        c1, c2, c3 = st.columns([1.25, 1.25, 0.8], gap="small")
-        campus = c1.text_input("Kampus / Universitas", value=prof["campus"], placeholder="Universitas Indonesia")
-        major = c2.text_input("Jurusan", value=prof["major"], placeholder="Ilmu Komputer")
-        year = c3.number_input("Angkatan", 2015, 2030, prof["year"])
+    # Bawah Slogan: Kiri Log In, Kanan Sign Up (Centered di Tengah)
+    _, btn_left, btn_right, _ = st.columns([1.35, 0.65, 0.65, 1.35], gap="small")
+    with btn_left:
+        if st.button("Log In", width="stretch", type="primary"):
+            set_view("login")
+    with btn_right:
+        if st.button("Sign Up", width="stretch", type="secondary"):
+            set_view("signup")
 
-        skills = st.multiselect("Skill Utama*", SKILL_OPTS, default=prof["skills"])
-        level = st.select_slider("Level Pengalaman", ["Pemula", "Menengah", "Mahir"], value=prof["level"])
-        c4, c5 = st.columns(2, gap="small")
-        portfolio = c4.text_input("Tautan Portofolio / GitHub", value=prof["portfolio"], placeholder="https://github.com/username")
-        avail = c5.text_input("Ketersediaan Waktu", value=prof["availability"], placeholder="Weekday malam & weekend")
+    html("""
+        <div style="text-align:center;margin-top:64px;font-size:12px;color:rgba(255,255,255,.55);letter-spacing:.08em;text-transform:uppercase;font-weight:600;">
+            Hackathon &nbsp;·&nbsp; Business Case &nbsp;·&nbsp; UI/UX Design &nbsp;·&nbsp; Data Science &nbsp;·&nbsp; Competitive Programming
+        </div>
+    """)
 
-        if st.form_submit_button("💾 Simpan & Perbarui Kartu ID", width="stretch", type="primary"):
-            if not name.strip() or not skills:
-                st.error("Nama lengkap dan minimal 1 skill wajib diisi.")
-            else:
-                st.session_state.user_profile = {
-                    "name": name.strip(), "major": major.strip(), "year": year, "campus": campus.strip(),
-                    "skills": skills, "level": level, "availability": avail.strip(), "portfolio": portfolio.strip()
-                }
-                st.toast("Kartu profil berhasil diperbarui!", icon="🎉")
-                st.rerun()
+# ==============================================================================
+# STAGE 2A: DEDICATED LOG IN PAGE
+# ==============================================================================
+elif curr_view == "login":
+    _, col_card, _ = st.columns([1, 1.15, 1])
+    with col_card:
+        if st.button("← Kembali", type="secondary"):
+            set_view("landing")
 
-    with col_prev:
-        if prof["name"]:
-            avail_val = esc(prof["availability"]) if prof["availability"] else "Fleksibel / Belum diatur"
-            port_btn = f'<a class="btn-link" href="{esc(safe_url(prof["portfolio"]))}" target="_blank">🌐 Buka Portofolio</a>' if prof["portfolio"] else ""
-            html(f"""
-                <div class="ui-card">
-                    <div class="card-title">🪪 Preview Kartu ID Pass</div>
-                    <div class="id-header">
-                        <span>✦ STUDENT COLLAB PASS</span>
-                        <span>ANGKATAN {prof['year']}</span>
-                    </div>
-                    <div class="row" style="gap:14px">
-                        {avatar(prof['name'], 54)}
-                        <div>
-                            <div class="name" style="font-size:18px">{esc(prof['name'])}</div>
-                            <div class="sub" style="margin-top:2px">{esc(prof['major'] or 'Jurusan belum diisi')}</div>
-                            <div class="sub">🏛️ {esc(prof['campus'] or 'Kampus belum diisi')}</div>
-                        </div>
-                    </div>
-                    <div class="id-meta-grid">
-                        <div class="id-meta-box">
-                            <div class="sub" style="font-size:11px">Level Pengalaman</div>
-                            <div style="font-size:13.5px;font-weight:700;color:#C4B5FD;margin-top:3px">⚡ {esc(prof['level'])}</div>
-                        </div>
-                        <div class="id-meta-box">
-                            <div class="sub" style="font-size:11px">Ketersediaan Waktu</div>
-                            <div style="font-size:13px;font-weight:600;margin-top:3px">⏱️ {avail_val}</div>
-                        </div>
-                    </div>
-                    <div class="id-section">
-                        <div class="sub" style="font-size:11.5px;margin-bottom:8px">Keahlian Utama ({len(prof['skills'])} Skill)</div>
-                        <div>{badges(prof['skills'])}</div>
-                    </div>
-                    {port_btn}
-                </div>
-            """)
-        else:
+        with st.form("login_form"):
             html("""
-                <div class="ui-card">
-                    <div class="card-title">🪪 Preview Kartu ID Pass</div>
-                    <div class="empty-box" style="margin-bottom:16px">
-                        <div class="empty-icon">🪪</div>
-                        <div class="empty-title">ID Pass Belum Aktif</div>
-                        <div class="empty-desc">Lengkapi data di sebelah kiri lalu klik simpan untuk mencetak kartu kolaborasimu.</div>
-                    </div>
-                    <div class="id-section">
-                        <div style="font-size:12px;font-weight:700;color:var(--ink);margin-bottom:6px">Syarat Aktivasi Kartu:</div>
-                        <div class="check-item"><span>⭕</span><span>Isi <b>Nama Lengkap</b> kamu</span></div>
-                        <div class="check-item"><span>⭕</span><span>Pilih minimal <b>1 Skill Utama</b></span></div>
-                        <div class="check-item"><span>✨</span><span>Kampus & Portofolio (Opsional)</span></div>
-                    </div>
+                <div style="text-align:center;margin-bottom:18px;">
+                    <div style="font-size:11.5px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:6px;">Cari Teman Lomba</div>
+                    <div style="font-size:28px;font-weight:800;letter-spacing:-0.03em;color:#fff;">Log In</div>
+                    <div style="font-size:13.5px;color:var(--muted);margin-top:4px;">Masuk ke akun kolaborasimu untuk melanjutkan.</div>
                 </div>
             """)
+            email_in = st.text_input("Email atau Username", placeholder="nama@ui.ac.id")
+            pass_in = st.text_input("Kata Sandi", type="password", placeholder="••••••••")
 
-# ==============================================================================
-# HALAMAN 2: EKSPLORASI LOMBA (Tema Cyan-Emerald • Layout Arena & Event Ticket)
-# ==============================================================================
-elif "Eksplorasi Lomba" in page:
-    comps = st.session_state.competitions
-    active_cats = len({c["category"] for c in comps})
-    hero(
-        "Arena Lomba & Kompetisi",
-        "Temukan ajang kompetisi mahasiswa terbaik atau tambahkan target lomba timmu.",
-        f'<div class="hero-stat"><div class="sub" style="color:#CCFBF1">Status Arena</div><div style="font-size:20px;font-weight:800;margin-top:2px">{len(comps)} Lomba • {active_cats} Bidang</div></div>'
-    )
-
-    c1, c2, c3 = st.columns([2, 1, 1], gap="small")
-    q = c1.text_input("Cari", placeholder="🔍 Ketik nama lomba atau penyelenggara...", label_visibility="collapsed").strip().lower()
-    cat_f = c2.selectbox("Kategori", ["Semua Kategori", *CAT_OPTS], label_visibility="collapsed")
-    sort_f = c3.selectbox("Urutan", ["Deadline Terdekat", "Nama (A-Z)", "Terbaru Ditambahkan"], label_visibility="collapsed")
-
-    with st.expander("➕ Daftarkan Lomba Baru ke Arena"):
-        with st.form("add_comp", clear_on_submit=True):
-            f1, f2 = st.columns(2, gap="small")
-            title = f1.text_input("Nama Kompetisi*", placeholder="Contoh: Gemastik 2026")
-            cat = f1.selectbox("Kategori Bidang", CAT_OPTS)
-            org = f2.text_input("Penyelenggara", placeholder="Contoh: Puspresnas")
-            ddl = f2.date_input("Batas Pendaftaran")
-            if st.form_submit_button("🚀 Tambahkan ke Daftar Lomba", width="stretch", type="primary"):
-                if title.strip():
-                    comps.append({"title": title.strip(), "category": cat, "organizer": org.strip() or "-", "deadline": str(ddl)})
-                    st.toast("Kompetisi berhasil ditambahkan!", icon="🏆")
-                    st.rerun()
+            if st.form_submit_button("Masuk ke Dashboard", width="stretch", type="primary"):
+                if not email_in.strip() or not pass_in.strip():
+                    st.error("Masukkan email/username dan kata sandi.")
                 else:
-                    st.warning("Nama kompetisi wajib diisi.")
+                    acc = st.session_state.accounts.get(email_in.strip().lower())
+                    if acc and acc["password"] != pass_in:
+                        st.error("Kata sandi tidak sesuai.")
+                    else:
+                        if acc:
+                            st.session_state.user_profile["name"] = acc["name"]
+                            st.session_state.user_profile["campus"] = acc["campus"]
+                        elif not st.session_state.user_profile["name"]:
+                            st.session_state.user_profile["name"] = email_in.split("@")[0].replace(".", " ").title()
+                        set_view("app")
 
-    filtered = [
-        c for c in comps
-        if (cat_f == "Semua Kategori" or c["category"] == cat_f)
-        and (not q or q in c["title"].lower() or q in c["organizer"].lower())
-    ]
-    if sort_f == "Deadline Terdekat":
-        filtered.sort(key=lambda x: x["deadline"])
-    elif sort_f == "Nama (A-Z)":
-        filtered.sort(key=lambda x: x["title"].lower())
-    else:
-        filtered = list(reversed(filtered))
-
-    if not filtered:
-        empty_box("🎯", "Belum Ada Lomba yang Sesuai", "Buka panel 'Daftarkan Lomba Baru' di atas atau ubah filter pencarianmu.")
-    else:
-        cols = st.columns(2, gap="medium")
-        for i, comp in enumerate(filtered):
-            with cols[i % 2]:
-                html(f"""
-                    <div class="ui-card" style="margin-bottom:14px">
-                        <div class="row between">
-                            <span class="skill-badge">{esc(comp['category'])}</span>
-                            <span class="ddl-pill">📅 {esc(comp['deadline'])}</span>
-                        </div>
-                        <div class="ticket-head">
-                            <div class="name" style="font-size:18px">{esc(comp['title'])}</div>
-                            <div class="sub" style="margin-top:4px">🏛️ Penyelenggara: {esc(comp['organizer'])}</div>
-                        </div>
-                    </div>
-                """)
+        if st.button("Belum punya akun? Sign Up →", width="stretch", type="secondary"):
+            set_view("signup")
 
 # ==============================================================================
-# HALAMAN 3: REKOMENDASI TEMAN (Tema Amber-Rose • Layout Radar Match Dashboard)
+# STAGE 2B: DEDICATED SIGN UP PAGE
+# ==============================================================================
+elif curr_view == "signup":
+    _, col_card, _ = st.columns([0.95, 1.25, 0.95])
+    with col_card:
+        if st.button("← Kembali", type="secondary"):
+            set_view("landing")
+
+        with st.form("signup_form"):
+            html("""
+                <div style="text-align:center;margin-bottom:18px;">
+                    <div style="font-size:11.5px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:6px;">Cari Teman Lomba</div>
+                    <div style="font-size:28px;font-weight:800;letter-spacing:-0.03em;color:#fff;">Sign Up</div>
+                    <div style="font-size:13.5px;color:var(--muted);margin-top:4px;">Buat akun baru untuk mulai mencari rekan tim lomba.</div>
+                </div>
+            """)
+            reg_name = st.text_input("Nama Lengkap *", placeholder="Farraj Bagas")
+            reg_campus = st.text_input("Universitas / Institusi *", placeholder="Universitas Indonesia")
+            reg_email = st.text_input("Email Kampus / Username *", placeholder="farraj.bagas@ui.ac.id")
+            reg_pass = st.text_input("Buat Kata Sandi *", type="password", placeholder="Minimal 6 karakter")
+
+            if st.form_submit_button("Buat Akun & Masuk", width="stretch", type="primary"):
+                if not reg_name.strip() or not reg_email.strip() or not reg_pass.strip():
+                    st.error("Nama lengkap, email, dan kata sandi wajib diisi.")
+                else:
+                    st.session_state.accounts[reg_email.strip().lower()] = {
+                        "name": reg_name.strip(),
+                        "campus": reg_campus.strip(),
+                        "password": reg_pass,
+                    }
+                    st.session_state.user_profile["name"] = reg_name.strip()
+                    st.session_state.user_profile["campus"] = reg_campus.strip()
+                    set_view("app")
+
+        if st.button("Sudah punya akun? Log In →", width="stretch", type="secondary"):
+            set_view("login")
+
+# ==============================================================================
+# STAGE 3: MAIN WEBSITE DENGAN TOP NAVBAR BUTTONS (Setelah Login / Sign Up)
 # ==============================================================================
 else:
-    candidates = st.session_state.candidates
-    status_txt = "⚡ Radar Aktif" if prof["name"] else "⏳ Menunggu Profil"
-    hero(
-        "Radar Rekomendasi Rekan Tim",
-        "Pencocokan cerdas berdasarkan irisan keahlian komplementer dan ketersediaan waktu.",
-        f'<div class="hero-stat"><div class="sub" style="color:#FDE68A">Status Engine</div><div style="font-size:19px;font-weight:800;margin-top:2px">{status_txt}</div></div>'
-    )
+    prof = st.session_state.user_profile
+    page = st.session_state.active_page
 
-    if not prof["name"]:
+    # Top Horizontal Navbar menggunakan Pill Buttons (tanpa radio circle)
+    nav_brand, n1, n2, n3, nav_user, nav_out = st.columns([1.25, 0.75, 0.95, 0.95, 1.05, 0.65], gap="small")
+    with nav_brand:
         html("""
-            <div class="ui-card" style="padding:36px 28px !important">
-                <div class="empty-box" style="border-color:rgba(245,158,11,.35);background:rgba(245,158,11,.04)">
-                    <div class="empty-icon">⚠️</div>
-                    <div class="empty-title">Profil Kolaborasi Belum Diisi</div>
-                    <div class="empty-desc">Untuk melihat rekomendasi rekan tim yang cocok, silakan isi <b>Nama Lengkap</b> dan <b>Skill Utama</b> kamu di menu <b>👤 Profil Saya</b> terlebih dahulu.</div>
+            <div style="display:flex;align-items:center;gap:11px;">
+                <div style="width:32px;height:32px;border-radius:50%;background:#FFFFFF;color:#000000;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:12.5px;letter-spacing:-0.04em;">CT</div>
+                <div>
+                    <div style="font-size:14.5px;font-weight:800;letter-spacing:-0.02em;color:#fff;line-height:1.1">Cari Teman Lomba</div>
+                    <div style="font-size:11px;color:var(--muted)">Fasilkom UI · Kelompok 17</div>
                 </div>
             </div>
         """)
-    else:
-        m1, m2, m3 = st.columns(3, gap="medium")
-        m1.metric("Skill Aktif Kamu", f"{len(prof['skills'])} Keahlian")
-        m2.metric("Level Pengalaman", prof["level"])
-        m3.metric("Kandidat Ditemukan", f"{len(candidates)} Rekan")
+    for col_nav, p_name in zip((n1, n2, n3), PAGES):
+        with col_nav:
+            if st.button(p_name, key=f"nav_{p_name}", width="stretch", type="primary" if page == p_name else "secondary"):
+                st.session_state.active_page = p_name
+                st.rerun()
+    with nav_user:
+        html(f"""
+            <div style="display:flex;align-items:center;justify-content:flex-end;gap:10px;">
+                {avatar(prof['name'] or 'U', 32)}
+                <div style="text-align:left;min-width:0;">
+                    <div style="font-size:12.5px;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{esc(prof['name'] or 'Mahasiswa')}</div>
+                    <div style="font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{esc(prof['campus'] or 'Kolaborator')}</div>
+                </div>
+            </div>
+        """)
+    with nav_out:
+        if st.button("Log Out", width="stretch", type="secondary"):
+            set_view("landing")
 
-        if not candidates:
-            empty_box("🔍", "Belum Ada Kandidat di Radar", "Daftar rekomendasi rekan tim akan otomatis tampil di sini saat data kandidat tersedia.")
+    # --------------------------------------------------------------------------
+    # HALAMAN 1: PROFIL
+    # --------------------------------------------------------------------------
+    if page == "Profil":
+        filled = sum(bool(prof[k]) for k in ("name", "campus", "major", "skills", "availability", "portfolio"))
+        page_hero(
+            "Profil Kolaborator",
+            "Identitas & Keahlian.",
+            "Lengkapi rekam jejak akademik dan keahlian utamamu agar calon rekan tim yang tepat dapat menemukanmu.",
+            BG_PHOTOS["Profil"],
+            f"Kelengkapan {int(filled / 6 * 100)}%",
+        )
+
+        col_form, col_prev = st.columns([1.18, 0.82], gap="medium")
+
+        with col_form, st.form("profile_form"):
+            st.markdown("#### Data Akademik & Keahlian")
+            name = st.text_input("Nama Lengkap *", value=prof["name"], placeholder="Farraj Bagas")
+            c1, c2, c3 = st.columns([1.25, 1.25, 0.8], gap="small")
+            campus = c1.text_input("Universitas", value=prof["campus"], placeholder="Universitas Indonesia")
+            major = c2.text_input("Program Studi", value=prof["major"], placeholder="Ilmu Komputer")
+            year = c3.number_input("Angkatan", 2015, 2030, prof["year"])
+
+            skills = st.multiselect("Keahlian Utama *", SKILL_OPTS, default=prof["skills"])
+            level = st.select_slider("Tingkat Pengalaman", ["Pemula", "Menengah", "Mahir"], value=prof["level"])
+            c4, c5 = st.columns(2, gap="small")
+            portfolio = c4.text_input("Tautan Portofolio / GitHub", value=prof["portfolio"], placeholder="github.com/username")
+            avail = c5.text_input("Ketersediaan Waktu", value=prof["availability"], placeholder="Weekday malam & weekend")
+
+            if st.form_submit_button("Simpan Profil", width="stretch", type="primary"):
+                if not name.strip() or not skills:
+                    st.error("Nama lengkap dan minimal 1 keahlian wajib diisi.")
+                else:
+                    st.session_state.user_profile = {
+                        "name": name.strip(), "major": major.strip(), "year": year, "campus": campus.strip(),
+                        "skills": skills, "level": level, "availability": avail.strip(), "portfolio": portfolio.strip()
+                    }
+                    st.toast("Profil berhasil disimpan.")
+                    st.rerun()
+
+        with col_prev:
+            skills_html = badges(prof["skills"]) if prof["skills"] else '<span style="font-size:13px;color:var(--subtle)">Belum ada keahlian dipilih</span>'
+            port_btn = f'<a class="pill-link" href="{esc(safe_url(prof["portfolio"]))}" target="_blank">Buka Portofolio ↗</a>' if prof["portfolio"] else ""
+            html(f"""
+                <div class="glass-card">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+                        <span style="font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);">Kartu Profil Mahasiswa</span>
+                        <span style="font-size:11.5px;font-weight:700;color:#FFFFFF;">
+                            {'Siap Berkolaborasi' if prof['skills'] else 'Belum Lengkap'}
+                        </span>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:16px;margin-bottom:22px;">
+                        {avatar(prof['name'] or '?', 56)}
+                        <div>
+                            <div style="font-size:21px;font-weight:800;letter-spacing:-0.025em;color:#fff;">{esc(prof['name'] or 'Nama Belum Diisi')}</div>
+                            <div style="font-size:13px;color:var(--muted);margin-top:3px;">{esc(prof['major'] or 'Program Studi')} · {esc(prof['campus'] or 'Universitas')}</div>
+                        </div>
+                    </div>
+                    <div style="border-top:1px solid rgba(255,255,255,.1);padding-top:6px;margin-bottom:18px;">
+                        <div class="kv-row"><span style="color:var(--muted)">Angkatan</span><span style="font-weight:700;color:#fff">{prof['year']}</span></div>
+                        <div class="kv-row"><span style="color:var(--muted)">Tingkat Pengalaman</span><span style="font-weight:700;color:#fff">{esc(prof['level'])}</span></div>
+                        <div class="kv-row"><span style="color:var(--muted)">Ketersediaan Waktu</span><span style="font-weight:700;color:#fff">{esc(prof['availability'] or 'Fleksibel')}</span></div>
+                    </div>
+                    <div style="font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:10px;">
+                        Keahlian ({len(prof['skills'])})
+                    </div>
+                    <div>{skills_html}</div>
+                    {port_btn}
+                </div>
+            """)
+
+    # --------------------------------------------------------------------------
+    # HALAMAN 2: EKSPLORASI LOMBA
+    # --------------------------------------------------------------------------
+    elif page == "Eksplorasi Lomba":
+        comps = st.session_state.competitions
+        page_hero(
+            "Katalog Kompetisi",
+            "Eksplorasi Ajang Lomba.",
+            "Temukan kompetisi teknologi, bisnis, dan desain untuk menguji kemampuan terbaik timmu.",
+            BG_PHOTOS["Eksplorasi Lomba"],
+            f"{len(comps)} Kompetisi",
+        )
+
+        c1, c2, c3 = st.columns([2.2, 1, 1], gap="small")
+        q = c1.text_input("Cari", placeholder="Cari nama kompetisi atau penyelenggara...", label_visibility="collapsed").strip().lower()
+        cat_f = c2.selectbox("Kategori", ["Semua Kategori", *CAT_OPTS], label_visibility="collapsed")
+        sort_f = c3.selectbox("Urutan", ["Deadline Terdekat", "Nama (A-Z)", "Terbaru"], label_visibility="collapsed")
+
+        with st.expander("+ Daftarkan Kompetisi Baru"):
+            with st.form("add_comp", clear_on_submit=True):
+                f1, f2 = st.columns(2, gap="small")
+                title = f1.text_input("Nama Kompetisi *", placeholder="Gemastik XIX 2026")
+                cat = f1.selectbox("Kategori Bidang", CAT_OPTS)
+                org = f2.text_input("Penyelenggara", placeholder="Puspresnas / Kemendikbud")
+                ddl = f2.date_input("Batas Pendaftaran")
+                if st.form_submit_button("Simpan Kompetisi", width="stretch", type="primary"):
+                    if title.strip():
+                        comps.append({"title": title.strip(), "category": cat, "organizer": org.strip() or "-", "deadline": str(ddl)})
+                        st.toast("Kompetisi berhasil ditambahkan.")
+                        st.rerun()
+                    else:
+                        st.warning("Nama kompetisi wajib diisi.")
+
+        filtered = [
+            c for c in comps
+            if (cat_f == "Semua Kategori" or c["category"] == cat_f)
+            and (not q or q in c["title"].lower() or q in c["organizer"].lower())
+        ]
+        if sort_f == "Deadline Terdekat":
+            filtered.sort(key=lambda x: x["deadline"])
+        elif sort_f == "Nama (A-Z)":
+            filtered.sort(key=lambda x: x["title"].lower())
         else:
-            tab_cards, tab_table = st.tabs(["🎴 Kartu Radar Kandidat", "📊 Tabel Perbandingan"])
-            with tab_cards:
-                cols = st.columns(3, gap="medium")
-                for i, c in enumerate(candidates):
-                    avail_txt = c.get("availability") or c.get("avail", "-")
-                    badge = "match-badge top" if c["match"] >= 90 else "match-badge"
-                    contact_btn = f'<a class="btn-link" href="{esc(safe_url(c["contact"]))}" target="_blank">💬 Hubungi {esc(c["name"].split()[0])}</a>' if c.get("contact") else ""
-                    with cols[i % 3]:
-                        html(f"""
-                            <div class="ui-card" style="margin-bottom:14px">
-                                <div class="row between">
-                                    <div class="row">{avatar(c['name'], 42)}<div><div class="name">{esc(c['name'])}</div><div class="sub">{esc(c['major'])}</div></div></div>
-                                    <span class="{badge}">{c['match']}% cocok</span>
-                                </div>
-                                <div class="bar-track"><span class="bar-fill" style="width:{c['match']}%"></span></div>
-                                <div class="sub" style="margin-bottom:8px">🏛️ {esc(c['campus'])}</div>
-                                <div style="margin-bottom:10px">{badges(c['skills'])}</div>
-                                <div class="sub">⏱️ {esc(avail_txt)}</div>
-                                {contact_btn}
-                            </div>
-                        """)
+            filtered = list(reversed(filtered))
 
-            with tab_table:
-                df = pd.DataFrame([{
-                    "Nama": c["name"], "Kampus": c["campus"], "Jurusan": c["major"],
-                    "Skill": ", ".join(c["skills"]), "Kecocokan": c["match"] / 100,
-                    "Kontak": safe_url(c["contact"]) if c.get("contact") else ""
-                } for c in candidates])
-                st.dataframe(df, width="stretch", hide_index=True, column_config={
-                    "Kecocokan": st.column_config.ProgressColumn("Skor Kecocokan", format="%.0f%%", min_value=0, max_value=1),
-                    "Kontak": st.column_config.LinkColumn("Tautan Kontak")
-                })
+        if not filtered:
+            html("""
+                <div class="glass-card" style="text-align:center;padding:52px 28px !important;margin-top:12px;">
+                    <div style="font-size:20px;font-weight:800;letter-spacing:-0.02em;color:#fff;margin-bottom:8px;">Belum Ada Kompetisi Terdaftar</div>
+                    <div style="font-size:14px;color:var(--muted);max-width:44ch;margin:0 auto;line-height:1.55;">
+                        Klik panel <b>+ Daftarkan Kompetisi Baru</b> di atas untuk menambahkan ajang lomba yang sedang kamu incar.
+                    </div>
+                </div>
+            """)
+        else:
+            cols = st.columns(2, gap="medium")
+            for i, comp in enumerate(filtered):
+                with cols[i % 2]:
+                    html(f"""
+                        <div class="glass-card hoverable" style="margin-bottom:16px;">
+                            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+                                <span class="pill-tag" style="margin:0">{esc(comp['category'])}</span>
+                                <span style="font-size:12.5px;color:var(--muted);font-weight:600;">Tenggat: <b style="color:#fff">{esc(comp['deadline'])}</b></span>
+                            </div>
+                            <div style="font-size:22px;font-weight:800;letter-spacing:-0.03em;color:#fff;margin-bottom:6px;">{esc(comp['title'])}</div>
+                            <div style="font-size:13.5px;color:var(--muted);">Penyelenggara: {esc(comp['organizer'])}</div>
+                        </div>
+                    """)
+
+    # --------------------------------------------------------------------------
+    # HALAMAN 3: REKOMENDASI TIM
+    # --------------------------------------------------------------------------
+    else:
+        candidates = st.session_state.candidates
+        page_hero(
+            "Rekomendasi Rekan",
+            "Temukan Partner Terbaikmu.",
+            "Rekomendasi kandidat rekan tim yang disusun berdasarkan komplementaritas keahlian dan jadwal.",
+            BG_PHOTOS["Rekomendasi Tim"],
+            f"{len(candidates)} Kandidat",
+        )
+
+        if not prof["name"] or not prof["skills"]:
+            html("""
+                <div class="glass-card" style="text-align:center;padding:52px 28px !important;">
+                    <div style="font-size:21px;font-weight:800;letter-spacing:-0.02em;color:#fff;margin-bottom:8px;">Lengkapi Keahlianmu Terlebih Dahulu</div>
+                    <div style="font-size:14px;color:var(--muted);max-width:46ch;margin:0 auto;line-height:1.55;">
+                        Pilih minimal 1 keahlian utama pada halaman <b>Profil</b> agar sistem dapat mencocokkan profilmu dengan kandidat yang relevan.
+                    </div>
+                </div>
+            """)
+        else:
+            s1, s2, s3 = st.columns(3, gap="medium")
+            with s1:
+                html(f'<div class="bento-stat"><div style="font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)">Keahlian Aktif</div><div class="bento-num">{len(prof["skills"])} Skill</div></div>')
+            with s2:
+                html(f'<div class="bento-stat"><div style="font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)">Tingkat Pengalaman</div><div class="bento-num">{esc(prof["level"])}</div></div>')
+            with s3:
+                html(f'<div class="bento-stat"><div style="font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)">Kandidat Tersedia</div><div class="bento-num">{len(candidates)} Rekan</div></div>')
+
+            st.write("")
+            if not candidates:
+                html("""
+                    <div class="glass-card" style="text-align:center;padding:52px 28px !important;">
+                        <div style="font-size:20px;font-weight:800;letter-spacing:-0.02em;color:#fff;margin-bottom:8px;">Belum Ada Kandidat di Database</div>
+                        <div style="font-size:14px;color:var(--muted);max-width:44ch;margin:0 auto;line-height:1.55;">
+                            Daftar rekomendasi rekan tim akan otomatis muncul di sini saat data peserta telah tersedia.
+                        </div>
+                    </div>
+                """)
+            else:
+                tab_cards, tab_table = st.tabs(["Tampilan Kartu", "Tabel Perbandingan"])
+                with tab_cards:
+                    cols = st.columns(3, gap="medium")
+                    for i, c in enumerate(candidates):
+                        avail_txt = c.get("availability") or c.get("avail", "Fleksibel")
+                        contact_btn = f'<a class="pill-link" href="{esc(safe_url(c["contact"]))}" target="_blank">Hubungi {esc(c["name"].split()[0])} ↗</a>' if c.get("contact") else ""
+                        with cols[i % 3]:
+                            html(f"""
+                                <div class="glass-card hoverable" style="margin-bottom:16px;">
+                                    <div style="display:flex;justify-content:space-between;align-items:center;">
+                                        <div style="display:flex;align-items:center;gap:12px;">
+                                            {avatar(c['name'], 44)}
+                                            <div>
+                                                <div style="font-size:16.5px;font-weight:800;color:#fff;letter-spacing:-0.02em">{esc(c['name'])}</div>
+                                                <div style="font-size:12.5px;color:var(--muted)">{esc(c['major'])}</div>
+                                            </div>
+                                        </div>
+                                        <span style="font-size:15px;font-weight:800;color:#fff">{c['match']}%</span>
+                                    </div>
+                                    <div class="bar-track"><span class="bar-fill" style="width:{c['match']}%"></span></div>
+                                    <div style="font-size:12.5px;color:var(--muted);margin-bottom:12px;">{esc(c['campus'])} · {esc(avail_txt)}</div>
+                                    <div>{badges(c['skills'])}</div>
+                                    {contact_btn}
+                                </div>
+                            """)
+
+                with tab_table:
+                    df = pd.DataFrame([{
+                        "Nama": c["name"], "Universitas": c["campus"], "Program Studi": c["major"],
+                        "Keahlian": ", ".join(c["skills"]), "Kecocokan": c["match"] / 100,
+                        "Kontak": safe_url(c["contact"]) if c.get("contact") else ""
+                    } for c in candidates])
+                    st.dataframe(df, width="stretch", hide_index=True, column_config={
+                        "Kecocokan": st.column_config.ProgressColumn("Skor Kecocokan", format="%.0f%%", min_value=0, max_value=1),
+                        "Kontak": st.column_config.LinkColumn("Kontak")
+                    })
