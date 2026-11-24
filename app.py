@@ -1249,18 +1249,24 @@ else:
                     st.rerun()
 
     # --------------------------------------------------------------------------
-    # HALAMAN 2: KOMPETISI
+    # HALAMAN 2: KOMPETISI (Editorial Stage Header + Photographic Hover-Zoom Cards, 0% Data Dummy)
     # --------------------------------------------------------------------------
     elif page == "Kompetisi":
         comps = st.session_state.competitions
+        cat_photos = {
+            "Hackathon": BG_PHOTOS["auth"],
+            "Data Science": BG_PHOTOS["Profil"],
+            "UI/UX Design": BG_PHOTOS["Tim Saya"],
+            "Business Case": BG_PHOTOS["Rekomendasi"],
+            "Competitive Programming": BG_PHOTOS["Kompetisi"],
+        }
+
         html(f"""
-            <div class="catalog-header">
-                <div>
-                    <div style="font-size:28px;font-weight:800;letter-spacing:-0.03em;color:#fff;line-height:1.1;">Katalog Kompetisi</div>
-                    <div style="font-size:13.5px;color:var(--muted);margin-top:6px;">Daftar kompetisi teknologi, data science, desain, dan bisnis beserta kebutuhan peran tim.</div>
-                </div>
-                <div style="font-size:13px;font-weight:700;color:var(--brown-light);background:var(--card);border:1px solid var(--border);padding:8px 16px;border-radius:8px;">
-                    {len(comps)} Kompetisi Terdaftar
+            <div class="sec-head" style="margin: 24px auto 34px;">
+                <div class="sec-eyebrow">DIREKTORI KOMPETISI &nbsp;·&nbsp; {len(comps)} TERDAFTAR</div>
+                <div class="sec-title" style="font-size:clamp(34px, 4.6vw, 56px);">Eksplorasi Ajang Lomba.</div>
+                <div class="sec-desc">
+                    Telusuri ajang kompetisi teknologi, kecerdasan buatan, desain produk, dan strategi bisnis beserta kebutuhan komposisi timnya.
                 </div>
             </div>
         """)
@@ -1310,34 +1316,43 @@ else:
             filtered = list(reversed(filtered))
 
         if not filtered:
-            html("""
-                <div class="arch-card" style="text-align:center;padding:48px 28px !important;margin-top:8px;">
-                    <div style="font-size:18px;font-weight:800;letter-spacing:-0.02em;color:#fff;margin-bottom:6px;">Belum Ada Kompetisi Terdaftar</div>
-                    <div style="font-size:13.5px;color:var(--muted);max-width:46ch;margin:0 auto;line-height:1.55;">
-                        Buka panel <b>+ Daftarkan Kompetisi Baru</b> di atas untuk menambahkan lomba beserta ukuran tim dan peran yang dibutuhkan.
+            html(f"""
+                <div class="role-photo-card" style="height:260px;margin-top:14px;align-items:center;justify-content:center;text-align:center;">
+                    <div class="role-photo-bg" style="background-image:linear-gradient(180deg, rgba(10,8,7,.55) 0%, rgba(10,8,7,.92) 100%), url('{BG_PHOTOS['Kompetisi']}');"></div>
+                    <div class="role-photo-content" style="max-width:480px;">
+                        <div style="font-size:11px;font-weight:700;letter-spacing:.16em;color:var(--brown-light);margin-bottom:8px;">DIREKTORI MASIH KOSONG</div>
+                        <div style="font-size:24px;font-weight:800;letter-spacing:-0.03em;color:#fff;margin-bottom:8px;">Belum Ada Kompetisi Terdaftar</div>
+                        <div style="font-size:13.5px;color:var(--muted);line-height:1.55;">
+                            Buka panel <b>+ Daftarkan Kompetisi Baru</b> di atas untuk menambahkan ajang lomba beserta kapasitas tim dan peran yang dibutuhkan.
+                        </div>
                     </div>
                 </div>
             """)
         else:
+            st.write("")
             cols = st.columns(2, gap="medium")
             for i, comp in enumerate(filtered):
                 t_size = comp.get("team_size", 3)
                 r_needed = comp.get("roles_needed", [])
-                roles_markup = badges(r_needed, muted=True) if r_needed else '<span class="rect-tag subtle">Semua Peran</span>'
+                roles_markup = badges(r_needed) if r_needed else '<span class="rect-tag subtle">Semua Peran</span>'
+                photo_bg = cat_photos.get(comp["category"], BG_PHOTOS["Kompetisi"])
                 with cols[i % 2]:
                     html(f"""
-                        <div class="arch-card hoverable" style="margin-bottom:10px;">
-                            <div style="display:flex;justify-content:space-between;align-items:center;padding-bottom:12px;margin-bottom:12px;border-bottom:1px solid var(--border);">
-                                <span class="rect-tag" style="margin:0">{esc(comp['category'])}</span>
-                                <span style="font-size:12px;color:var(--muted);font-weight:600;">Tim: <b style="color:#fff">{t_size} Orang</b> &nbsp;|&nbsp; Tenggat: <b style="color:#fff">{esc(comp['deadline'])}</b></span>
+                        <div class="role-photo-card" style="height:auto;min-height:265px;margin-bottom:10px;">
+                            <div class="role-photo-bg" style="background-image:linear-gradient(180deg, rgba(10,8,7,.35) 0%, rgba(10,8,7,.95) 82%), url('{photo_bg}');"></div>
+                            <div class="role-photo-content">
+                                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+                                    <span class="rect-tag" style="margin:0">{esc(comp['category'])}</span>
+                                    <span style="font-size:12px;color:var(--ink);font-weight:700;">Tim {t_size} Orang &nbsp;·&nbsp; Tenggat {esc(comp['deadline'])}</span>
+                                </div>
+                                <div style="font-size:23px;font-weight:800;letter-spacing:-0.03em;color:#fff;margin-bottom:4px;">{esc(comp['title'])}</div>
+                                <div style="font-size:13px;color:var(--muted);margin-bottom:14px;">Penyelenggara: {esc(comp['organizer'])}</div>
+                                <div style="font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--brown-light);margin-bottom:6px;">Kebutuhan Peran Tim</div>
+                                <div>{roles_markup}</div>
                             </div>
-                            <div style="font-size:20px;font-weight:800;letter-spacing:-0.025em;color:#fff;margin-bottom:4px;">{esc(comp['title'])}</div>
-                            <div style="font-size:12.5px;color:var(--muted);margin-bottom:14px;">Penyelenggara: {esc(comp['organizer'])}</div>
-                            <div style="font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--brown-light);margin-bottom:6px;">Peran Dibutuhkan</div>
-                            <div>{roles_markup}</div>
                         </div>
                     """)
-                    if st.button(f"Cari Rekan untuk {comp['title']} →", key=f"match_comp_{i}", width="stretch", type="secondary"):
+                    if st.button(f"Cari Rekan untuk {comp['title']} →", key=f"match_comp_{i}", width="stretch", type="primary"):
                         st.session_state.selected_comp = comp["title"]
                         st.session_state.active_page = "Rekomendasi"
                         st.rerun()
