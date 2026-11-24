@@ -1,3 +1,4 @@
+import base64
 from html import escape as esc
 from pathlib import Path
 import pandas as pd
@@ -198,18 +199,39 @@ def set_view(target: str) -> None:
     st.rerun()
 
 
+def initials_of(name: str) -> str:
+    """Extract up to two uppercase initials from a person's name."""
+    parts = [p for p in (name or "").strip().split() if p]
+    if not parts:
+        return "CT"
+    if len(parts) == 1:
+        return parts[0][:2].upper()
+    return (parts[0][0] + parts[-1][0]).upper()
+
+
 def avatar(name: str, size: int = 64, photo_url: str = "") -> str:
-    """Return circular profile photo avatar HTML for a given collaborator name."""
-    idx = sum(ord(ch) for ch in (name or "U")) % len(AVATAR_PORTRAITS)
-    src = safe_url(photo_url) if photo_url and photo_url.strip() else AVATAR_PORTRAITS[idx]
+    """Return circular profile avatar HTML (custom/candidate photo or clean initials monogram)."""
+    raw_url = (photo_url or "").strip()
+    ring_style = (
+        f"width:{size}px;height:{size}px;min-width:{size}px;border-radius:50%;"
+        f"overflow:hidden;border:2px solid var(--brown-light);"
+        f"box-shadow:0 8px 22px rgba(0,0,0,0.55),0 0 0 3px rgba(196,154,108,0.14);"
+        f"display:inline-flex;align-items:center;justify-content:center;box-sizing:border-box;"
+    )
+    if raw_url:
+        src = raw_url if raw_url.startswith("data:image/") else safe_url(raw_url)
+        return (
+            f'<div style="{ring_style}background:var(--brown-soft);">'
+            f'<img src="{esc(src)}" alt="{esc(name or "Avatar")}" '
+            f'style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block;" />'
+            f'</div>'
+        )
+    init_txt = esc(initials_of(name))
+    f_size = max(11, round(size * 0.36))
     return (
-        f'<div style="width:{size}px;height:{size}px;min-width:{size}px;border-radius:50%;'
-        f'overflow:hidden;border:2.5px solid var(--brown-light);'
-        f'box-shadow:0 10px 26px rgba(0,0,0,0.65),0 0 0 4px rgba(196,154,108,0.14);'
-        f'background:var(--brown-soft);display:inline-flex;align-items:center;justify-content:center;">'
-        f'<img src="{esc(src)}" alt="{esc(name or "Avatar")}" '
-        f'style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block;" />'
-        f'</div>'
+        f'<div style="{ring_style}background:linear-gradient(135deg,#3A281E 0%,#1E1612 100%);'
+        f'color:#F5EBE1;font-weight:800;font-size:{f_size}px;letter-spacing:-0.03em;">'
+        f'{init_txt}</div>'
     )
 
 
@@ -583,8 +605,8 @@ button.step-up:active, button.step-down:active {{
     color: #FFFFFF !important;
 }}
 
-/* Translucent Frosted Glass Cards & Forms */
-.arch-card, [data-testid="stForm"] {{
+/* Translucent Frosted Glass Cards, Keyed Containers, & Expanders */
+.arch-card, [data-testid="stForm"], [class*="st-key-glass_"] {{
     width: 100% !important;
     background: var(--card) !important;
     backdrop-filter: blur(26px) saturate(165%) !important;
@@ -595,9 +617,33 @@ button.step-up:active, button.step-down:active {{
     box-sizing: border-box !important;
     box-shadow: 0 22px 50px rgba(0, 0, 0, 0.5) !important;
     position: relative !important;
-    overflow: hidden !important;
     animation: staggerUp 0.45s cubic-bezier(0.16, 1, 0.3, 1) 0.05s both;
     transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.22s ease, box-shadow 0.22s ease !important;
+}}
+.arch-card {{
+    overflow: hidden !important;
+}}
+[data-testid="stExpander"] {{
+    background: rgba(18, 14, 12, 0.80) !important;
+    backdrop-filter: blur(24px) saturate(160%) !important;
+    -webkit-backdrop-filter: blur(24px) saturate(160%) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: 12px !important;
+    overflow: hidden !important;
+}}
+[data-testid="stExpander"] summary {{
+    font-weight: 700 !important;
+    color: var(--ink) !important;
+    padding: 12px 18px !important;
+}}
+[data-testid="stExpander"] summary:hover {{
+    color: var(--brown-light) !important;
+}}
+[data-testid="stFileUploader"] section {{
+    background: rgba(18, 14, 12, 0.72) !important;
+    border: 1px dashed var(--border-strong) !important;
+    border-radius: 10px !important;
+    padding: 10px 14px !important;
 }}
 .arch-card::after {{
     content: "";
@@ -1268,17 +1314,17 @@ elif curr_view == "login":
                 else:
                     acc_key = email_in.strip().lower()
                     acc = st.session_state.accounts.get(acc_key)
-                    if acc and acc["password"] != pass_in:
+                    if not acc:
+                        st.error("Akun belum terdaftar. Silakan buat akun terlebih dahulu di halaman Sign Up.")
+                    elif acc["password"] != pass_in:
                         st.error("Kata sandi tidak sesuai.")
                     else:
                         st.session_state.current_account = acc_key
-                        if acc and "profile" in acc:
+                        if "profile" in acc:
                             st.session_state.user_profile = dict(acc["profile"])
-                        elif acc:
+                        else:
                             st.session_state.user_profile["name"] = acc["name"]
                             st.session_state.user_profile["campus"] = acc["campus"]
-                        elif not st.session_state.user_profile["name"]:
-                            st.session_state.user_profile["name"] = email_in.split("@")[0].replace(".", " ").title()
                         set_view("app")
 
         if st.button("Belum punya akun? Sign Up →", width="stretch", type="secondary"):
@@ -1361,127 +1407,138 @@ else:
             set_view("landing")
 
     # --------------------------------------------------------------------------
-    # HALAMAN 1: PROFIL (Unified Profile Sheet + Per-Skill Levels + Weekly Time Slots)
+    # HALAMAN 1: PROFIL (Workspace Header + Unified Identity Card + Glass Editor)
     # --------------------------------------------------------------------------
     if page == "Profil":
-        disp_title = prof["name"] if prof["name"] else "Bangun Identitas Kolaborasimu."
-        disp_sub = (
-            f"{prof.get('role', 'Kolaborator')} · {prof['major'] or 'Program Studi'} · {prof['campus'] or 'Universitas'} (Angkatan {prof['year']})"
-            if prof["name"]
-            else "Susun profil akademik, keahlian beserta tingkat kemahirannya, dan slot jadwal kosong mingguan sesuai spesifikasi README."
+        disp_name = prof["name"] if prof["name"] else "Profil Belum Dilengkapi"
+        disp_affil = (
+            f"{prof.get('major') or 'Program Studi Belum Diisi'} · {prof.get('campus') or 'Universitas Belum Diisi'} · Angkatan {prof['year']}"
         )
         curr_skill_levels = prof.get("skill_levels") or {s: prof.get("level", "Menengah") for s in prof.get("skills", [])}
         curr_slots = prof.get("availability_slots") or ([prof["availability"]] if prof.get("availability") else [])
         skills_markup = skill_level_badges(prof.get("skills", []), curr_skill_levels, prof.get("level", "Menengah"))
-        slots_markup = badges(curr_slots, muted=True) if curr_slots else '<span class="rect-tag subtle">Belum ada slot jadwal dipilih</span>'
-        hero_avatar = avatar(prof["name"], size=88, photo_url=prof.get("photo", ""))
+        slots_markup = badges(curr_slots, muted=True) if curr_slots else '<span class="rect-tag subtle">Belum ada jadwal dipilih</span>'
+        hero_avatar = avatar(prof["name"], size=76, photo_url=prof.get("photo", ""))
 
         links_list = []
         if prof.get("contact"):
             links_list.append(f'<a class="action-link" style="height:34px !important;font-size:12px !important;" href="{esc(safe_url(prof["contact"]))}" target="_blank">WhatsApp / LinkedIn ↗</a>')
         if prof.get("portfolio"):
             links_list.append(f'<a class="action-link secondary" style="height:34px !important;font-size:12px !important;" href="{esc(safe_url(prof["portfolio"]))}" target="_blank">Portofolio / GitHub ↗</a>')
-        links_html = f'<div style="display:flex;flex-wrap:wrap;gap:8px;">{"".join(links_list)}</div>' if links_list else '<span class="rect-tag subtle">Kontak &amp; portofolio belum diisi</span>'
+        links_html = f'<div style="display:flex;flex-wrap:wrap;gap:8px;">{"".join(links_list)}</div>' if links_list else '<span class="rect-tag subtle">Kontak belum diisi</span>'
 
         html(f"""
-            <div class="sec-head" style="margin: 14px auto 24px;">
-                <div style="margin-bottom:12px;">{hero_avatar}</div>
-                <div class="sec-eyebrow">PROFIL KOLABORATOR &nbsp;·&nbsp; FASILKOM UI</div>
-                <div class="sec-title" style="font-size:clamp(32px, 4.3vw, 52px);">{esc(disp_title)}</div>
-                <div class="sec-desc">{esc(disp_sub)}</div>
+            <div class="catalog-header" style="margin-top:6px;">
+                <div>
+                    <div style="font-size:11px;font-weight:700;letter-spacing:.15em;text-transform:uppercase;color:var(--brown-light);margin-bottom:4px;">Profil Peserta</div>
+                    <div style="font-size:clamp(26px, 3vw, 34px);font-weight:800;letter-spacing:-0.03em;color:#fff;line-height:1.1;">Identitas &amp; Keahlian</div>
+                </div>
+                <div style="font-size:12.5px;color:var(--muted);">
+                    Data profil digunakan sebagai acuan perhitungan skor kecocokan tim.
+                </div>
             </div>
 
-            <div class="spec-box" style="padding:24px 28px;margin-bottom:26px;">
-                <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:14px;padding-bottom:18px;margin-bottom:18px;border-bottom:1px solid var(--border);">
-                    <div>
-                        <div style="font-size:10.5px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--brown-light);margin-bottom:5px;">PERAN UTAMA &amp; AFILIASI</div>
-                        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-                            <span class="rect-tag" style="margin:0;">{esc(prof.get('role', 'Kolaborator'))}</span>
-                            <span style="font-size:14px;font-weight:700;color:#fff;">{esc(prof.get('major') or 'Program Studi Belum Diisi')} · {esc(prof.get('campus') or 'Universitas Belum Diisi')} ({prof['year']})</span>
+            <div class="spec-box" style="padding:24px 28px;margin-bottom:20px;">
+                <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:16px;padding-bottom:18px;margin-bottom:18px;border-bottom:1px solid var(--border);">
+                    <div style="display:flex;align-items:center;gap:16px;min-width:0;">
+                        {hero_avatar}
+                        <div style="min-width:0;">
+                            <div style="margin-bottom:5px;">
+                                <span class="rect-tag" style="margin:0;">{esc(prof.get('role', 'Kolaborator'))}</span>
+                            </div>
+                            <div style="font-size:22px;font-weight:800;letter-spacing:-0.025em;color:#fff;line-height:1.2;">{esc(disp_name)}</div>
+                            <div style="font-size:13px;color:var(--muted);margin-top:3px;">{esc(disp_affil)}</div>
                         </div>
                     </div>
                     {links_html}
                 </div>
                 <div style="display:grid;grid-template-columns:1.25fr 1fr;gap:22px;">
                     <div>
-                        <div style="font-size:10.5px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--brown-light);margin-bottom:8px;">KEAHLIAN &amp; LEVEL KEMAHIRAN ({len(prof.get('skills', []))} SKILL)</div>
+                        <div style="font-size:10.5px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--brown-light);margin-bottom:8px;">Keahlian &amp; Level ({len(prof.get('skills', []))})</div>
                         <div>{skills_markup}</div>
                     </div>
                     <div>
-                        <div style="font-size:10.5px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--brown-light);margin-bottom:8px;">KETERSEDIAAN WAKTU MINGGUAN</div>
+                        <div style="font-size:10.5px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--brown-light);margin-bottom:8px;">Jadwal Luang Mingguan</div>
                         <div>{slots_markup}</div>
                     </div>
                 </div>
             </div>
         """)
 
-        st.markdown("#### Perbarui Profil, Level per Keahlian, & Jadwal Mingguan")
-        col_l, col_r = st.columns(2, gap="medium")
-        with col_l:
-            name = st.text_input("Nama Lengkap *", value=prof["name"], placeholder="Farraj Bagas")
-            curr_role = prof.get("role", ROLE_OPTS[0])
-            role = st.selectbox("Peran Utama dalam Tim *", ROLE_OPTS, index=ROLE_OPTS.index(curr_role) if curr_role in ROLE_OPTS else 0)
-            campus = st.text_input("Universitas / Institusi", value=prof["campus"], placeholder="Universitas Indonesia")
-            c_maj, c_yr = st.columns([1.4, 0.8], gap="small")
-            major = c_maj.text_input("Program Studi", value=prof["major"], placeholder="Ilmu Komputer")
-            year = c_yr.number_input("Angkatan", 2015, 2030, prof["year"])
-        with col_r:
-            skills = st.multiselect("Pilih Keahlian Utama *", SKILL_OPTS, default=prof["skills"])
-            valid_default_slots = [s for s in curr_slots if s in TIME_SLOT_OPTS]
-            avail_slots = st.multiselect(
-                "Slot Ketersediaan Waktu Mingguan *",
-                TIME_SLOT_OPTS,
-                default=valid_default_slots or [TIME_SLOT_OPTS[1], TIME_SLOT_OPTS[3]],
-            )
-            c_wa, c_pf = st.columns(2, gap="small")
-            contact = c_wa.text_input("Kontak WhatsApp / LinkedIn", value=prof.get("contact", ""), placeholder="wa.me/62812...")
-            portfolio = c_pf.text_input("Portofolio / GitHub (Opsional)", value=prof["portfolio"], placeholder="github.com/username")
+        with st.container(key="glass_profile_editor"):
+            st.markdown("#### Edit Data Profil")
+            col_l, col_r = st.columns(2, gap="medium")
+            with col_l:
+                name = st.text_input("Nama Lengkap *", value=prof["name"], placeholder="Farraj Bagas")
+                curr_role = prof.get("role", ROLE_OPTS[0])
+                role = st.selectbox("Peran Utama dalam Tim *", ROLE_OPTS, index=ROLE_OPTS.index(curr_role) if curr_role in ROLE_OPTS else 0)
+                campus = st.text_input("Universitas / Institusi", value=prof["campus"], placeholder="Universitas Indonesia")
+                c_maj, c_yr = st.columns([1.4, 0.8], gap="small")
+                major = c_maj.text_input("Program Studi", value=prof["major"], placeholder="Ilmu Komputer")
+                year = c_yr.number_input("Angkatan", 2015, 2030, prof["year"])
+            with col_r:
+                skills = st.multiselect("Pilih Keahlian Utama *", SKILL_OPTS, default=prof["skills"])
+                valid_default_slots = [s for s in curr_slots if s in TIME_SLOT_OPTS]
+                avail_slots = st.multiselect(
+                    "Jadwal Luang Mingguan *",
+                    TIME_SLOT_OPTS,
+                    default=valid_default_slots or [TIME_SLOT_OPTS[1], TIME_SLOT_OPTS[3]],
+                )
+                c_wa, c_pf = st.columns(2, gap="small")
+                contact = c_wa.text_input("Kontak WhatsApp / LinkedIn", value=prof.get("contact", ""), placeholder="wa.me/62812...")
+                portfolio = c_pf.text_input("Portofolio / GitHub (Opsional)", value=prof["portfolio"], placeholder="github.com/username")
+                uploaded_photo = st.file_uploader("Foto Profil (Opsional, PNG/JPG)", type=["png", "jpg", "jpeg", "webp"])
 
-        new_skill_levels = {}
-        if skills:
-            html('<div style="font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--brown-light);margin:10px 0 8px;">Atur Tingkat Kemahiran per Keahlian (Pemula 60% · Menengah 80% · Mahir 100%)</div>')
-            lvl_cols = st.columns(min(len(skills), 3), gap="small")
-            for idx, sk in enumerate(skills):
-                prev_lvl = curr_skill_levels.get(sk, prof.get("level", "Menengah"))
-                with lvl_cols[idx % len(lvl_cols)]:
-                    new_skill_levels[sk] = st.selectbox(
-                        f"Level {sk}",
-                        LEVEL_OPTS,
-                        index=LEVEL_OPTS.index(prev_lvl) if prev_lvl in LEVEL_OPTS else 1,
-                        key=f"sk_lvl_{sk}",
-                    )
+            new_skill_levels = {}
+            if skills:
+                html('<div style="font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--brown-light);margin:8px 0 8px;">Tingkat Kemahiran per Keahlian</div>')
+                lvl_cols = st.columns(min(len(skills), 3), gap="small")
+                for idx, sk in enumerate(skills):
+                    prev_lvl = curr_skill_levels.get(sk, prof.get("level", "Menengah"))
+                    with lvl_cols[idx % len(lvl_cols)]:
+                        new_skill_levels[sk] = st.selectbox(
+                            f"Level {sk}",
+                            LEVEL_OPTS,
+                            index=LEVEL_OPTS.index(prev_lvl) if prev_lvl in LEVEL_OPTS else 1,
+                            key=f"sk_lvl_{sk}",
+                        )
 
-        st.write("")
-        if st.button("Simpan Perubahan Profil", key="save_profile_btn", width="stretch", type="primary"):
-            if not name.strip() or not skills:
-                st.error("Nama lengkap dan minimal 1 keahlian wajib diisi.")
-            else:
-                avg_weight = sum(LEVEL_WEIGHTS[new_skill_levels.get(s, "Menengah")] for s in skills) / len(skills)
-                dominant_lvl = "Mahir" if avg_weight >= 0.9 else ("Menengah" if avg_weight >= 0.72 else "Pemula")
-                avail_str = ", ".join(avail_slots) if avail_slots else "Fleksibel Setiap Hari"
-                updated_prof = {
-                    "name": name.strip(),
-                    "major": major.strip(),
-                    "year": year,
-                    "campus": campus.strip(),
-                    "role": role,
-                    "skills": skills,
-                    "skill_levels": new_skill_levels,
-                    "level": dominant_lvl,
-                    "availability": avail_str,
-                    "availability_slots": avail_slots,
-                    "contact": contact.strip(),
-                    "portfolio": portfolio.strip(),
-                    "photo": prof.get("photo", ""),
-                }
-                st.session_state.user_profile = updated_prof
-                curr_acc = st.session_state.get("current_account", "")
-                if curr_acc and curr_acc in st.session_state.accounts:
-                    st.session_state.accounts[curr_acc]["name"] = updated_prof["name"]
-                    st.session_state.accounts[curr_acc]["campus"] = updated_prof["campus"]
-                    st.session_state.accounts[curr_acc]["profile"] = dict(updated_prof)
-                st.toast("Profil, level per keahlian, dan jadwal mingguan berhasil disimpan.")
-                st.rerun()
+            st.write("")
+            if st.button("Simpan Perubahan Profil", key="save_profile_btn", width="stretch", type="primary"):
+                if not name.strip() or not skills:
+                    st.error("Nama lengkap dan minimal 1 keahlian wajib diisi.")
+                else:
+                    photo_data = prof.get("photo", "")
+                    if uploaded_photo is not None:
+                        mime = uploaded_photo.type or "image/jpeg"
+                        b64 = base64.b64encode(uploaded_photo.getvalue()).decode("ascii")
+                        photo_data = f"data:{mime};base64,{b64}"
+                    avg_weight = sum(LEVEL_WEIGHTS[new_skill_levels.get(s, "Menengah")] for s in skills) / len(skills)
+                    dominant_lvl = "Mahir" if avg_weight >= 0.9 else ("Menengah" if avg_weight >= 0.72 else "Pemula")
+                    avail_str = ", ".join(avail_slots) if avail_slots else "Fleksibel Setiap Hari"
+                    updated_prof = {
+                        "name": name.strip(),
+                        "major": major.strip(),
+                        "year": year,
+                        "campus": campus.strip(),
+                        "role": role,
+                        "skills": skills,
+                        "skill_levels": new_skill_levels,
+                        "level": dominant_lvl,
+                        "availability": avail_str,
+                        "availability_slots": avail_slots,
+                        "contact": contact.strip(),
+                        "portfolio": portfolio.strip(),
+                        "photo": photo_data,
+                    }
+                    st.session_state.user_profile = updated_prof
+                    curr_acc = st.session_state.get("current_account", "")
+                    if curr_acc and curr_acc in st.session_state.accounts:
+                        st.session_state.accounts[curr_acc]["name"] = updated_prof["name"]
+                        st.session_state.accounts[curr_acc]["campus"] = updated_prof["campus"]
+                        st.session_state.accounts[curr_acc]["profile"] = dict(updated_prof)
+                    st.toast("Profil berhasil diperbarui.")
+                    st.rerun()
 
     # --------------------------------------------------------------------------
     # HALAMAN 2: KOMPETISI (Hybrid Seed Catalog + Smart Auto-Detect Input + Aligned Photo Cards)
