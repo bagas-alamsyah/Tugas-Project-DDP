@@ -569,6 +569,19 @@ div.stElementContainer,
     align-items: flex-start !important;
     width: 100% !important;
 }}
+[data-testid="stHorizontalBlock"]:has([class*="st-key-glass_card_"]) {{
+    align-items: stretch !important;
+}}
+[data-testid="stHorizontalBlock"]:has([class*="st-key-glass_card_"]) > [data-testid="stColumn"],
+[data-testid="stHorizontalBlock"]:has([class*="st-key-glass_card_"]) > [data-testid="stColumn"] > div,
+[data-testid="stHorizontalBlock"]:has([class*="st-key-glass_card_"]) > [data-testid="stColumn"] > div > [data-testid="stVerticalBlock"],
+[data-testid="stHorizontalBlock"]:has([class*="st-key-glass_card_"]) [data-testid="stLayoutWrapper"],
+[data-testid="stHorizontalBlock"]:has([class*="st-key-glass_card_"]) [data-testid="stElementContainer"]:has([class*="st-key-glass_card_"]) {{
+    display: flex !important;
+    flex-direction: column !important;
+    flex: 1 1 auto !important;
+    height: 100% !important;
+}}
 [data-testid="stMarkdownContainer"] h4 {{
     font-size: 15.5px !important; font-weight: 700 !important;
     letter-spacing: -0.02em !important; color: var(--ink) !important;
@@ -622,6 +635,70 @@ button.step-up:active, button.step-down:active {{
 }}
 .arch-card {{
     overflow: hidden !important;
+}}
+[class*="st-key-glass_card_"] {{
+    width: 100% !important;
+    height: 100% !important;
+    flex: 1 1 auto !important;
+    display: flex !important;
+    flex-direction: column !important;
+    background: rgba(18, 15, 13, 0.84) !important;
+    backdrop-filter: blur(26px) saturate(165%) !important;
+    -webkit-backdrop-filter: blur(26px) saturate(165%) !important;
+    border: 1px solid var(--border) !important;
+    border-top: 2px solid var(--brown-light) !important;
+    border-radius: 16px !important;
+    padding: 22px !important;
+    box-sizing: border-box !important;
+    box-shadow: 0 20px 46px rgba(0, 0, 0, 0.52) !important;
+    overflow: hidden !important;
+    animation: staggerUp 0.42s cubic-bezier(0.16, 1, 0.3, 1) 0.04s both;
+    transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.22s ease, box-shadow 0.22s ease !important;
+}}
+[class*="st-key-glass_card_"] > [data-testid="stVerticalBlock"],
+[class*="st-key-glass_card_"] > div > [data-testid="stVerticalBlock"] {{
+    flex: 1 1 auto !important;
+    height: 100% !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: space-between !important;
+}}
+[class*="st-key-glass_card_"] > [data-testid="stVerticalBlock"] > div:last-child,
+[class*="st-key-glass_card_"] > div > [data-testid="stVerticalBlock"] > div:last-child {{
+    margin-top: auto !important;
+}}
+[class*="st-key-glass_card_comp_"] {{
+    height: 482px !important;
+    min-height: 482px !important;
+    max-height: 482px !important;
+}}
+[class*="st-key-glass_card_"]:hover {{
+    transform: translateY(-4px);
+    border-color: var(--border-strong) !important;
+    box-shadow: 0 26px 56px -10px rgba(0, 0, 0, 0.78) !important;
+}}
+.comp-banner-wrap {{
+    position: relative;
+    height: 118px;
+    margin: -22px -22px 16px -22px;
+    overflow: hidden;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    padding: 14px 18px;
+    box-sizing: border-box;
+}}
+.comp-banner-bg {{
+    position: absolute;
+    inset: 0;
+    background-size: cover;
+    background-position: center;
+    transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+    z-index: 0;
+}}
+[class*="st-key-glass_card_"]:hover .comp-banner-bg {{
+    transform: scale(1.07);
 }}
 [data-testid="stExpander"] {{
     background: rgba(18, 14, 12, 0.80) !important;
@@ -1541,7 +1618,7 @@ else:
                     st.rerun()
 
     # --------------------------------------------------------------------------
-    # HALAMAN 2: KOMPETISI (Hybrid Seed Catalog + Smart Auto-Detect Input + Aligned Photo Cards)
+    # HALAMAN 2: KOMPETISI (Workspace Header + Integrated Glass Cards + Auto-Detect)
     # --------------------------------------------------------------------------
     elif page == "Kompetisi":
         if not st.session_state.competitions:
@@ -1556,30 +1633,32 @@ else:
         }
 
         html(f"""
-            <div class="sec-head" style="margin: 20px auto 30px;">
-                <div class="sec-eyebrow">DIREKTORI KOMPETISI &nbsp;·&nbsp; {len(comps)} AJANG TERSEDIA</div>
-                <div class="sec-title" style="font-size:clamp(34px, 4.6vw, 56px);">Eksplorasi Ajang Lomba.</div>
-                <div class="sec-desc">
-                    Telusuri katalog kompetisi populer atau tambahkan lomba baru secara instan dengan deteksi otomatis kategori, peran, dan keahlian.
+            <div class="catalog-header" style="margin-top:6px;">
+                <div>
+                    <div style="font-size:11px;font-weight:700;letter-spacing:.15em;text-transform:uppercase;color:var(--brown-light);margin-bottom:4px;">Direktori Kompetisi</div>
+                    <div style="font-size:clamp(26px, 3vw, 34px);font-weight:800;letter-spacing:-0.03em;color:#fff;line-height:1.1;">Katalog Ajang Lomba</div>
+                </div>
+                <div style="font-size:12.5px;font-weight:700;color:var(--brown-light);background:var(--brown-soft);border:1px solid var(--border-strong);padding:7px 14px;border-radius:8px;">
+                    {len(comps)} Kompetisi Terdaftar
                 </div>
             </div>
         """)
 
         c1, c2, c3 = st.columns([2.2, 1, 1], gap="small")
-        q = c1.text_input("Cari", placeholder="Cari nama kompetisi, penyelenggara, atau peran...", label_visibility="collapsed").strip().lower()
+        q = c1.text_input("Cari", placeholder="Cari nama kompetisi, penyelenggara, peran, atau skill...", label_visibility="collapsed").strip().lower()
         cat_f = c2.selectbox("Kategori", ["Semua Kategori", *CAT_OPTS], label_visibility="collapsed")
         sort_f = c3.selectbox("Urutan", ["Deadline Terdekat", "Nama (A-Z)", "Terbaru"], label_visibility="collapsed")
 
-        with st.expander("+ Tambah Kompetisi yang Belum Ada di Katalog (Smart Auto-Detect)"):
+        with st.expander("+ Tambah Kompetisi Baru (Auto-Detect Kategori, Peran, & Skill)"):
             html("""
                 <div style="font-size:12.5px;color:var(--muted);margin-bottom:10px;">
-                    Ketik <b>Nama Kompetisi</b> terlebih dahulu (misal: <i>GarudaHacks AI Datathon</i> atau <i>Bionix Business Case</i>) — sistem otomatis menyarankan Kategori, Peran Tim, dan Keahlian yang sesuai.
+                    Ketik <b>Nama Kompetisi</b> terlebih dahulu (misal: <i>GarudaHacks AI Datathon</i> atau <i>Bionix Business Case</i>) lalu tekan Enter — kategori, peran, dan skill otomatis menyesuaikan.
                 </div>
             """)
             f1, f2, f3 = st.columns([1.4, 1, 0.7], gap="small")
             title_in = f1.text_input("Nama Kompetisi *", key="new_comp_title", placeholder="Contoh: GarudaHacks AI Datathon 2026")
             auto_cat, auto_roles, auto_skills = auto_detect_comp_specs(title_in)
-            cat_in = f2.selectbox("Kategori Bidang (Auto-Detect)", CAT_OPTS, index=CAT_OPTS.index(auto_cat))
+            cat_in = f2.selectbox("Kategori Bidang", CAT_OPTS, index=CAT_OPTS.index(auto_cat))
             team_size_in = f3.number_input("Ukuran Tim (Orang)", 2, 8, 3)
 
             f4, f5 = st.columns(2, gap="small")
@@ -1588,13 +1667,13 @@ else:
 
             f6, f7 = st.columns(2, gap="small")
             roles_req = f6.multiselect(
-                "Peran yang Dibutuhkan (Auto-Detect)",
+                "Peran yang Dibutuhkan",
                 ROLE_OPTS,
                 default=[r for r in auto_roles if r in ROLE_OPTS],
                 key=f"roles_auto_{auto_cat}",
             )
             skills_req = f7.multiselect(
-                "Keahlian yang Dibutuhkan (Auto-Detect)",
+                "Keahlian yang Dibutuhkan",
                 SKILL_OPTS,
                 default=[s for s in auto_skills if s in SKILL_OPTS],
                 key=f"skills_auto_{auto_cat}",
@@ -1613,7 +1692,7 @@ else:
                         "roles_needed": final_roles,
                         "required_skills": final_skills,
                     })
-                    st.toast(f"Kompetisi '{title_in.strip()}' berhasil ditambahkan ke katalog.")
+                    st.toast(f"Kompetisi '{title_in.strip()}' berhasil ditambahkan.")
                     st.rerun()
                 else:
                     st.warning("Nama kompetisi wajib diisi.")
@@ -1635,15 +1714,12 @@ else:
             filtered.sort(key=lambda x: x["title"].lower())
 
         if not filtered:
-            html(f"""
-                <div class="role-photo-card" style="height:250px;margin-top:14px;align-items:center;justify-content:center;text-align:center;">
-                    <div class="role-photo-bg" style="background-image:linear-gradient(180deg, rgba(10,8,7,.55) 0%, rgba(10,8,7,.92) 100%), url('{BG_PHOTOS['Kompetisi']}');"></div>
-                    <div class="role-photo-content" style="max-width:480px;">
-                        <div style="font-size:11px;font-weight:700;letter-spacing:.16em;color:var(--brown-light);margin-bottom:8px;">PENCARIAN KOMPETISI</div>
-                        <div style="font-size:24px;font-weight:800;letter-spacing:-0.03em;color:#fff;margin-bottom:8px;">Lomba Belum Ada di Katalog</div>
-                        <div style="font-size:13.5px;color:var(--muted);line-height:1.55;">
-                            Buka panel <b>+ Tambah Kompetisi yang Belum Ada di Katalog</b> di atas untuk menambahkannya secara instan dengan fitur Auto-Detect.
-                        </div>
+            html("""
+                <div class="spec-box" style="text-align:center;padding:42px 28px;margin-top:14px;">
+                    <div style="font-size:11px;font-weight:700;letter-spacing:.15em;color:var(--brown-light);margin-bottom:8px;">HASIL PENCARIAN KOSONG</div>
+                    <div style="font-size:22px;font-weight:800;letter-spacing:-0.025em;color:#fff;margin-bottom:6px;">Kompetisi Tidak Ditemukan</div>
+                    <div style="font-size:13.5px;color:var(--muted);max-width:480px;margin:0 auto;line-height:1.6;">
+                        Ubah filter kategori/kata kunci, atau tambahkan lomba baru lewat panel <b>+ Tambah Kompetisi Baru</b> di atas.
                     </div>
                 </div>
             """)
@@ -1660,31 +1736,32 @@ else:
                     skills_markup = badges(s_needed, muted=True) if s_needed else '<span class="rect-tag subtle">Semua Keahlian</span>'
                     photo_bg = cat_photos.get(comp["category"], BG_PHOTOS["Kompetisi"])
                     with cols[col_idx]:
-                        html(f"""
-                            <div class="role-photo-card" style="height:282px;margin-bottom:10px;display:flex;flex-direction:column;justify-content:space-between;box-sizing:border-box;">
-                                <div class="role-photo-bg" style="background-image:linear-gradient(180deg, rgba(10,8,7,.38) 0%, rgba(10,8,7,.96) 78%), url('{photo_bg}');"></div>
-                                <div class="role-photo-content" style="display:flex;flex-direction:column;justify-content:space-between;height:100%;">
-                                    <div>
-                                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-                                            <span class="rect-tag" style="margin:0">{esc(comp['category'])}</span>
-                                            <span style="font-size:12px;color:var(--ink);font-weight:700;">Tim {t_size} Orang &nbsp;·&nbsp; Tenggat {esc(comp['deadline'])}</span>
-                                        </div>
-                                        <div style="font-size:21px;font-weight:800;letter-spacing:-0.03em;color:#fff;margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{esc(comp['title'])}</div>
-                                        <div style="font-size:12.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Penyelenggara: {esc(comp['organizer'])}</div>
+                        with st.container(key=f"glass_card_comp_{i}"):
+                            html(f"""
+                                <div class="comp-banner-wrap">
+                                    <div class="comp-banner-bg" style="background-image:linear-gradient(180deg, rgba(10,8,7,.32) 0%, rgba(18,15,13,.96) 100%), url('{photo_bg}');"></div>
+                                    <span class="rect-tag" style="position:relative;z-index:1;margin:0;backdrop-filter:blur(8px);">{esc(comp['category'])}</span>
+                                    <span style="position:relative;z-index:1;font-size:11.5px;color:#fff;font-weight:700;background:rgba(10,8,7,0.68);border:1px solid var(--border);padding:4px 10px;border-radius:6px;backdrop-filter:blur(8px);">
+                                        Tim {t_size} Orang &nbsp;·&nbsp; Tenggat {esc(comp['deadline'])}
+                                    </span>
+                                </div>
+                                <div style="display:flex;flex-direction:column;justify-content:space-between;margin-bottom:4px;">
+                                    <div style="height:78px;overflow:hidden;margin-bottom:8px;">
+                                        <div style="font-size:19px;font-weight:800;letter-spacing:-0.025em;color:#fff;line-height:1.25;margin-bottom:4px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">{esc(comp['title'])}</div>
+                                        <div style="font-size:12.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Penyelenggara: <b style="color:var(--ink);font-weight:600;">{esc(comp['organizer'])}</b></div>
                                     </div>
                                     <div>
-                                        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--brown-light);margin-bottom:4px;">Kebutuhan Peran Tim</div>
-                                        <div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:8px;">{roles_markup}</div>
-                                        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--brown-light);margin-bottom:4px;">Keahlian yang Dicari</div>
-                                        <div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{skills_markup}</div>
+                                        <div style="font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--brown-light);margin-bottom:4px;">Peran Tim yang Dicari</div>
+                                        <div style="display:flex;flex-wrap:wrap;align-content:flex-start;gap:2px;height:64px;overflow:hidden;margin-bottom:6px;">{roles_markup}</div>
+                                        <div style="font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--brown-light);margin-bottom:4px;">Keahlian Terkait</div>
+                                        <div style="display:flex;flex-wrap:wrap;align-content:flex-start;gap:2px;height:64px;overflow:hidden;">{skills_markup}</div>
                                     </div>
                                 </div>
-                            </div>
-                        """)
-                        if st.button(f"Cari Rekan untuk {comp['title']} →", key=f"match_comp_{i}", width="stretch", type="primary"):
-                            st.session_state.selected_comp = comp["title"]
-                            st.session_state.active_page = "Rekomendasi"
-                            st.rerun()
+                            """)
+                            if st.button("Cari Rekan untuk Lomba Ini →", key=f"match_comp_{i}", width="stretch", type="primary"):
+                                st.session_state.selected_comp = comp["title"]
+                                st.session_state.active_page = "Rekomendasi"
+                                st.rerun()
                 st.write("")
 
     # --------------------------------------------------------------------------
