@@ -27,7 +27,130 @@ st.session_state.setdefault("user_profile", {
     "level": "Menengah", "availability": "", "availability_slots": [],
     "contact": "", "portfolio": "", "photo": ""
 })
-st.session_state.setdefault("competitions", [])
+SEED_COMPETITIONS = [
+    {
+        "title": "GEMASTIK XIX — Pengembangan Perangkat Lunak",
+        "category": "Hackathon",
+        "organizer": "Puspresnas Kemendikbudristek",
+        "deadline": "2026-12-18",
+        "team_size": 3,
+        "roles_needed": ["Software / Fullstack Developer", "UI/UX Designer", "Product & Pitcher"],
+        "required_skills": ["Python", "Frontend/Web", "Backend", "UI/UX"],
+    },
+    {
+        "title": "COMPFEST 18 — Data Science & AI Datathon",
+        "category": "Data Science",
+        "organizer": "Fasilkom Universitas Indonesia",
+        "deadline": "2026-12-10",
+        "team_size": 3,
+        "roles_needed": ["Data / ML Engineer", "Business Analyst", "Backend Developer"],
+        "required_skills": ["Python", "Machine Learning", "Business Analysis"],
+    },
+    {
+        "title": "ARKAVIDIA 10.0 — Hackvidia Software Sprint",
+        "category": "Hackathon",
+        "organizer": "HMIF Institut Teknologi Bandung",
+        "deadline": "2027-01-14",
+        "team_size": 3,
+        "roles_needed": ["Frontend Developer", "Backend Developer", "Product & Pitcher"],
+        "required_skills": ["Frontend/Web", "Backend", "Pitching"],
+    },
+    {
+        "title": "FIND IT! 2026 — UI/UX Product Design Challenge",
+        "category": "UI/UX Design",
+        "organizer": "DTETI Universitas Gadjah Mada",
+        "deadline": "2027-01-22",
+        "team_size": 3,
+        "roles_needed": ["UI/UX Designer", "Frontend Developer", "Product & Pitcher"],
+        "required_skills": ["UI/UX", "Frontend/Web", "Public Speaking", "Pitching"],
+    },
+    {
+        "title": "National Business Case Competition (NBCC)",
+        "category": "Business Case",
+        "organizer": "FEB Universitas Indonesia",
+        "deadline": "2026-12-28",
+        "team_size": 3,
+        "roles_needed": ["Business Analyst", "Product & Pitcher"],
+        "required_skills": ["Business Analysis", "Finance", "Public Speaking", "Pitching"],
+    },
+    {
+        "title": "HOLOGY 8.0 — Competitive Programming & CTF",
+        "category": "Competitive Programming",
+        "organizer": "Filkom Universitas Brawijaya",
+        "deadline": "2027-02-05",
+        "team_size": 3,
+        "roles_needed": ["Backend Developer", "Software / Fullstack Developer"],
+        "required_skills": ["Python", "Backend", "Cyber Security"],
+    },
+]
+
+
+def load_initial_competitions() -> list:
+    """Load seed competitions from data/competitions.csv if available, merged with built-in catalog."""
+    loaded = []
+    csv_path = BASE_DIR / "data" / "competitions.csv"
+    if csv_path.exists():
+        try:
+            df = pd.read_csv(csv_path)
+            for _, row in df.iterrows():
+                t_val = str(row.get("title") or row.get("name") or "").strip()
+                if not t_val:
+                    continue
+                r_raw = str(row.get("roles_needed", ""))
+                s_raw = str(row.get("required_skills", ""))
+                loaded.append({
+                    "title": t_val,
+                    "category": str(row.get("category", "Hackathon")).strip() or "Hackathon",
+                    "organizer": str(row.get("organizer", "Universitas / Nasional")).strip(),
+                    "deadline": str(row.get("deadline") or row.get("registration_deadline") or "2026-12-31")[:10],
+                    "team_size": int(row.get("team_size") or row.get("min_team_size") or 3),
+                    "roles_needed": [x.strip() for x in r_raw.split(";") if x.strip()] if r_raw and r_raw != "nan" else [ROLE_OPTS[0], ROLE_OPTS[3]],
+                    "required_skills": [x.strip() for x in s_raw.split(";") if x.strip()] if s_raw and s_raw != "nan" else ["Python", "UI/UX"],
+                })
+        except Exception:
+            pass
+    existing_titles = {c["title"].lower() for c in loaded}
+    for sc in SEED_COMPETITIONS:
+        if sc["title"].lower() not in existing_titles:
+            loaded.append(dict(sc))
+    return loaded
+
+
+def auto_detect_comp_specs(title_text: str) -> tuple[str, list, list]:
+    """Auto-detect competition category, roles_needed, and required_skills from title keywords."""
+    t = title_text.lower()
+    if any(k in t for k in ("data", "ai", "ml", "machine learning", "analytics", "datathon", "kaggle")):
+        return (
+            "Data Science",
+            ["Data / ML Engineer", "Business Analyst", "Backend Developer"],
+            ["Python", "Machine Learning", "Business Analysis"],
+        )
+    if any(k in t for k in ("ui", "ux", "design", "figma", "produk", "product", "prototype")):
+        return (
+            "UI/UX Design",
+            ["UI/UX Designer", "Frontend Developer", "Product & Pitcher"],
+            ["UI/UX", "Frontend/Web", "Pitching"],
+        )
+    if any(k in t for k in ("business", "case", "bcc", "bisnis", "finance", "marketing", "pitch", "management")):
+        return (
+            "Business Case",
+            ["Business Analyst", "Product & Pitcher"],
+            ["Business Analysis", "Finance", "Public Speaking", "Pitching"],
+        )
+    if any(k in t for k in ("cp", "competitive", "ctf", "cyber", "security", "icpc", "algoritma")):
+        return (
+            "Competitive Programming",
+            ["Backend Developer", "Software / Fullstack Developer"],
+            ["Python", "Backend", "Cyber Security"],
+        )
+    return (
+        "Hackathon",
+        ["Software / Fullstack Developer", "UI/UX Designer", "Product & Pitcher"],
+        ["Python", "Frontend/Web", "Backend", "UI/UX"],
+    )
+
+
+st.session_state.setdefault("competitions", load_initial_competitions())
 st.session_state.setdefault("candidates", [])
 st.session_state.setdefault("teams", [])
 
@@ -1339,9 +1462,11 @@ else:
                 st.rerun()
 
     # --------------------------------------------------------------------------
-    # HALAMAN 2: KOMPETISI (Editorial Stage Header + Photographic Hover-Zoom Cards, 0% Data Dummy)
+    # HALAMAN 2: KOMPETISI (Hybrid Seed Catalog + Smart Auto-Detect Input + Aligned Photo Cards)
     # --------------------------------------------------------------------------
     elif page == "Kompetisi":
+        if not st.session_state.competitions:
+            st.session_state.competitions = load_initial_competitions()
         comps = st.session_state.competitions
         cat_photos = {
             "Hackathon": BG_PHOTOS["auth"],
@@ -1352,11 +1477,11 @@ else:
         }
 
         html(f"""
-            <div class="sec-head" style="margin: 24px auto 34px;">
-                <div class="sec-eyebrow">DIREKTORI KOMPETISI &nbsp;·&nbsp; {len(comps)} TERDAFTAR</div>
+            <div class="sec-head" style="margin: 20px auto 30px;">
+                <div class="sec-eyebrow">DIREKTORI KOMPETISI &nbsp;·&nbsp; {len(comps)} AJANG TERSEDIA</div>
                 <div class="sec-title" style="font-size:clamp(34px, 4.6vw, 56px);">Eksplorasi Ajang Lomba.</div>
                 <div class="sec-desc">
-                    Telusuri ajang kompetisi teknologi, kecerdasan buatan, desain produk, dan strategi bisnis beserta kebutuhan komposisi timnya.
+                    Telusuri katalog kompetisi populer atau tambahkan lomba baru secara instan dengan deteksi otomatis kategori, peran, dan keahlian.
                 </div>
             </div>
         """)
@@ -1366,86 +1491,122 @@ else:
         cat_f = c2.selectbox("Kategori", ["Semua Kategori", *CAT_OPTS], label_visibility="collapsed")
         sort_f = c3.selectbox("Urutan", ["Deadline Terdekat", "Nama (A-Z)", "Terbaru"], label_visibility="collapsed")
 
-        with st.expander("+ Daftarkan Kompetisi Baru"):
-            with st.form("add_comp", clear_on_submit=True):
-                f1, f2, f3 = st.columns([1.3, 1, 0.8], gap="small")
-                title = f1.text_input("Nama Kompetisi *", placeholder="Gemastik XIX 2026")
-                cat = f2.selectbox("Kategori Bidang", CAT_OPTS)
-                team_size = f3.number_input("Ukuran Tim (Orang)", 1, 10, 3)
+        with st.expander("+ Tambah Kompetisi yang Belum Ada di Katalog (Smart Auto-Detect)"):
+            html("""
+                <div style="font-size:12.5px;color:var(--muted);margin-bottom:10px;">
+                    Ketik <b>Nama Kompetisi</b> terlebih dahulu (misal: <i>GarudaHacks AI Datathon</i> atau <i>Bionix Business Case</i>) — sistem otomatis menyarankan Kategori, Peran Tim, dan Keahlian yang sesuai.
+                </div>
+            """)
+            f1, f2, f3 = st.columns([1.4, 1, 0.7], gap="small")
+            title_in = f1.text_input("Nama Kompetisi *", key="new_comp_title", placeholder="Contoh: GarudaHacks AI Datathon 2026")
+            auto_cat, auto_roles, auto_skills = auto_detect_comp_specs(title_in)
+            cat_in = f2.selectbox("Kategori Bidang (Auto-Detect)", CAT_OPTS, index=CAT_OPTS.index(auto_cat))
+            team_size_in = f3.number_input("Ukuran Tim (Orang)", 2, 8, 3)
 
-                f4, f5 = st.columns(2, gap="small")
-                org = f4.text_input("Penyelenggara", placeholder="Puspresnas / Kemendikbud")
-                ddl = f5.date_input("Batas Pendaftaran")
+            f4, f5 = st.columns(2, gap="small")
+            org_in = f4.text_input("Penyelenggara", key="new_comp_org", placeholder="Contoh: Universitas / Kementerian / Institusi")
+            ddl_in = f5.date_input("Batas Pendaftaran", key="new_comp_ddl")
 
-                f6, f7 = st.columns(2, gap="small")
-                roles_req = f6.multiselect("Peran yang Dibutuhkan (Roles Needed)", ROLE_OPTS, default=[ROLE_OPTS[0], ROLE_OPTS[3]])
-                skills_req = f7.multiselect("Keahlian yang Dibutuhkan", SKILL_OPTS)
+            f6, f7 = st.columns(2, gap="small")
+            roles_req = f6.multiselect(
+                "Peran yang Dibutuhkan (Auto-Detect)",
+                ROLE_OPTS,
+                default=[r for r in auto_roles if r in ROLE_OPTS],
+                key=f"roles_auto_{auto_cat}",
+            )
+            skills_req = f7.multiselect(
+                "Keahlian yang Dibutuhkan (Auto-Detect)",
+                SKILL_OPTS,
+                default=[s for s in auto_skills if s in SKILL_OPTS],
+                key=f"skills_auto_{auto_cat}",
+            )
 
-                if st.form_submit_button("Simpan Kompetisi", width="stretch", type="primary"):
-                    if title.strip():
-                        comps.append({
-                            "title": title.strip(), "category": cat, "organizer": org.strip() or "-",
-                            "deadline": str(ddl), "team_size": team_size,
-                            "roles_needed": roles_req, "required_skills": skills_req
-                        })
-                        st.toast("Kompetisi berhasil ditambahkan.")
-                        st.rerun()
-                    else:
-                        st.warning("Nama kompetisi wajib diisi.")
+            if st.button("Simpan Kompetisi ke Katalog", key="btn_save_comp", width="stretch", type="primary"):
+                if title_in.strip():
+                    final_roles = roles_req or auto_roles
+                    final_skills = skills_req or auto_skills
+                    comps.insert(0, {
+                        "title": title_in.strip(),
+                        "category": cat_in,
+                        "organizer": org_in.strip() or "Penyelenggara Nasional",
+                        "deadline": str(ddl_in),
+                        "team_size": team_size_in,
+                        "roles_needed": final_roles,
+                        "required_skills": final_skills,
+                    })
+                    st.toast(f"Kompetisi '{title_in.strip()}' berhasil ditambahkan ke katalog.")
+                    st.rerun()
+                else:
+                    st.warning("Nama kompetisi wajib diisi.")
 
         filtered = [
             c for c in comps
             if (cat_f == "Semua Kategori" or c["category"] == cat_f)
-            and (not q or q in c["title"].lower() or q in c["organizer"].lower() or q in " ".join(c.get("roles_needed", [])).lower())
+            and (
+                not q
+                or q in c["title"].lower()
+                or q in c["organizer"].lower()
+                or q in " ".join(c.get("roles_needed", [])).lower()
+                or q in " ".join(c.get("required_skills", [])).lower()
+            )
         ]
         if sort_f == "Deadline Terdekat":
             filtered.sort(key=lambda x: x["deadline"])
         elif sort_f == "Nama (A-Z)":
             filtered.sort(key=lambda x: x["title"].lower())
-        else:
-            filtered = list(reversed(filtered))
 
         if not filtered:
             html(f"""
-                <div class="role-photo-card" style="height:260px;margin-top:14px;align-items:center;justify-content:center;text-align:center;">
+                <div class="role-photo-card" style="height:250px;margin-top:14px;align-items:center;justify-content:center;text-align:center;">
                     <div class="role-photo-bg" style="background-image:linear-gradient(180deg, rgba(10,8,7,.55) 0%, rgba(10,8,7,.92) 100%), url('{BG_PHOTOS['Kompetisi']}');"></div>
                     <div class="role-photo-content" style="max-width:480px;">
-                        <div style="font-size:11px;font-weight:700;letter-spacing:.16em;color:var(--brown-light);margin-bottom:8px;">DIREKTORI MASIH KOSONG</div>
-                        <div style="font-size:24px;font-weight:800;letter-spacing:-0.03em;color:#fff;margin-bottom:8px;">Belum Ada Kompetisi Terdaftar</div>
+                        <div style="font-size:11px;font-weight:700;letter-spacing:.16em;color:var(--brown-light);margin-bottom:8px;">PENCARIAN KOMPETISI</div>
+                        <div style="font-size:24px;font-weight:800;letter-spacing:-0.03em;color:#fff;margin-bottom:8px;">Lomba Belum Ada di Katalog</div>
                         <div style="font-size:13.5px;color:var(--muted);line-height:1.55;">
-                            Buka panel <b>+ Daftarkan Kompetisi Baru</b> di atas untuk menambahkan ajang lomba beserta kapasitas tim dan peran yang dibutuhkan.
+                            Buka panel <b>+ Tambah Kompetisi yang Belum Ada di Katalog</b> di atas untuk menambahkannya secara instan dengan fitur Auto-Detect.
                         </div>
                     </div>
                 </div>
             """)
         else:
             st.write("")
-            cols = st.columns(2, gap="medium")
-            for i, comp in enumerate(filtered):
-                t_size = comp.get("team_size", 3)
-                r_needed = comp.get("roles_needed", [])
-                roles_markup = badges(r_needed) if r_needed else '<span class="rect-tag subtle">Semua Peran</span>'
-                photo_bg = cat_photos.get(comp["category"], BG_PHOTOS["Kompetisi"])
-                with cols[i % 2]:
-                    html(f"""
-                        <div class="role-photo-card" style="height:auto;min-height:265px;margin-bottom:10px;">
-                            <div class="role-photo-bg" style="background-image:linear-gradient(180deg, rgba(10,8,7,.35) 0%, rgba(10,8,7,.95) 82%), url('{photo_bg}');"></div>
-                            <div class="role-photo-content">
-                                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
-                                    <span class="rect-tag" style="margin:0">{esc(comp['category'])}</span>
-                                    <span style="font-size:12px;color:var(--ink);font-weight:700;">Tim {t_size} Orang &nbsp;·&nbsp; Tenggat {esc(comp['deadline'])}</span>
+            for row_start in range(0, len(filtered), 2):
+                cols = st.columns(2, gap="medium")
+                for col_idx, comp in enumerate(filtered[row_start:row_start + 2]):
+                    i = row_start + col_idx
+                    t_size = comp.get("team_size", 3)
+                    r_needed = comp.get("roles_needed", [])
+                    s_needed = comp.get("required_skills", [])
+                    roles_markup = badges(r_needed) if r_needed else '<span class="rect-tag subtle">Semua Peran</span>'
+                    skills_markup = badges(s_needed, muted=True) if s_needed else '<span class="rect-tag subtle">Semua Keahlian</span>'
+                    photo_bg = cat_photos.get(comp["category"], BG_PHOTOS["Kompetisi"])
+                    with cols[col_idx]:
+                        html(f"""
+                            <div class="role-photo-card" style="height:282px;margin-bottom:10px;display:flex;flex-direction:column;justify-content:space-between;box-sizing:border-box;">
+                                <div class="role-photo-bg" style="background-image:linear-gradient(180deg, rgba(10,8,7,.38) 0%, rgba(10,8,7,.96) 78%), url('{photo_bg}');"></div>
+                                <div class="role-photo-content" style="display:flex;flex-direction:column;justify-content:space-between;height:100%;">
+                                    <div>
+                                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+                                            <span class="rect-tag" style="margin:0">{esc(comp['category'])}</span>
+                                            <span style="font-size:12px;color:var(--ink);font-weight:700;">Tim {t_size} Orang &nbsp;·&nbsp; Tenggat {esc(comp['deadline'])}</span>
+                                        </div>
+                                        <div style="font-size:21px;font-weight:800;letter-spacing:-0.03em;color:#fff;margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{esc(comp['title'])}</div>
+                                        <div style="font-size:12.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Penyelenggara: {esc(comp['organizer'])}</div>
+                                    </div>
+                                    <div>
+                                        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--brown-light);margin-bottom:4px;">Kebutuhan Peran Tim</div>
+                                        <div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:8px;">{roles_markup}</div>
+                                        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--brown-light);margin-bottom:4px;">Keahlian yang Dicari</div>
+                                        <div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{skills_markup}</div>
+                                    </div>
                                 </div>
-                                <div style="font-size:23px;font-weight:800;letter-spacing:-0.03em;color:#fff;margin-bottom:4px;">{esc(comp['title'])}</div>
-                                <div style="font-size:13px;color:var(--muted);margin-bottom:14px;">Penyelenggara: {esc(comp['organizer'])}</div>
-                                <div style="font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--brown-light);margin-bottom:6px;">Kebutuhan Peran Tim</div>
-                                <div>{roles_markup}</div>
                             </div>
-                        </div>
-                    """)
-                    if st.button(f"Cari Rekan untuk {comp['title']} →", key=f"match_comp_{i}", width="stretch", type="primary"):
-                        st.session_state.selected_comp = comp["title"]
-                        st.session_state.active_page = "Rekomendasi"
-                        st.rerun()
+                        """)
+                        if st.button(f"Cari Rekan untuk {comp['title']} →", key=f"match_comp_{i}", width="stretch", type="primary"):
+                            st.session_state.selected_comp = comp["title"]
+                            st.session_state.active_page = "Rekomendasi"
+                            st.rerun()
+                st.write("")
 
     # --------------------------------------------------------------------------
     # HALAMAN 3: REKOMENDASI (Circular Profile Photo Cards + 50-30-20 Matching)
