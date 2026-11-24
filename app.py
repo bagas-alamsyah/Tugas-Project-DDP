@@ -122,9 +122,9 @@ active_bg_url = BG_PHOTOS[curr_page] if is_app else BG_PHOTOS["auth"]
 bg_css = f"""
 .stApp {{
     background-image:
-        radial-gradient(circle at 16% 14%, rgba(166, 123, 91, 0.22) 0%, transparent 48%),
-        radial-gradient(circle at 86% 82%, rgba(139, 94, 60, 0.18) 0%, transparent 52%),
-        linear-gradient(135deg, rgba(10, 8, 7, {'0.88' if is_app else '0.62'}) 0%, rgba(14, 11, 9, {'0.80' if is_app else '0.78'}) 50%, rgba(10, 8, 7, {'0.91' if is_app else '0.92'}) 100%),
+        radial-gradient(circle at 16% 14%, rgba(166, 123, 91, 0.25) 0%, transparent 48%),
+        radial-gradient(circle at 86% 82%, rgba(139, 94, 60, 0.22) 0%, transparent 52%),
+        linear-gradient(135deg, rgba(10, 8, 7, 0.62) 0%, rgba(14, 11, 9, 0.74) 50%, rgba(10, 8, 7, 0.86) 100%),
         url('{active_bg_url}');
     background-size: cover;
     background-position: center;
@@ -136,8 +136,8 @@ bg_css = f"""
     position: fixed;
     inset: 0;
     background:
-        radial-gradient(650px circle at 25% 25%, rgba(196, 154, 108, 0.11), transparent 70%),
-        radial-gradient(550px circle at 78% 72%, rgba(139, 94, 60, 0.10), transparent 70%);
+        radial-gradient(650px circle at 25% 25%, rgba(196, 154, 108, 0.14), transparent 70%),
+        radial-gradient(550px circle at 78% 72%, rgba(139, 94, 60, 0.12), transparent 70%);
     pointer-events: none;
     z-index: 0;
     animation: ambientDrift 12s ease-in-out infinite alternate;
@@ -1160,24 +1160,64 @@ else:
             set_view("landing")
 
     # --------------------------------------------------------------------------
-    # HALAMAN 1: PROFIL
+    # HALAMAN 1: PROFIL (Editorial Stage Header + Big-Number Bento Grid + Form Studio)
     # --------------------------------------------------------------------------
     if page == "Profil":
-        status_label = "Profil Aktif" if (prof["name"] and prof["skills"]) else "Belum Lengkap"
+        disp_title = prof["name"] if prof["name"] else "Bangun Identitas Kolaborasimu."
+        disp_sub = (
+            f"{prof.get('role', 'Kolaborator')} · {prof['major'] or 'Program Studi'} · {prof['campus'] or 'Universitas'}"
+            if prof["name"]
+            else "Susun rekam jejak akademik, peran utama, dan keahlianmu sebagai fondasi algoritma pencocokan tim."
+        )
+        weight_pct = int(LEVEL_WEIGHTS.get(prof["level"], 0.8) * 100)
+        skills_markup = badges(prof["skills"]) if prof["skills"] else '<span class="rect-tag subtle">Belum ada skill dipilih</span>'
+
+        links_list = []
+        if prof.get("contact"):
+            links_list.append(f'<a class="action-link" style="height:32px !important;font-size:11.5px !important;" href="{esc(safe_url(prof["contact"]))}" target="_blank">WhatsApp / LinkedIn ↗</a>')
+        if prof.get("portfolio"):
+            links_list.append(f'<a class="action-link secondary" style="height:32px !important;font-size:11.5px !important;" href="{esc(safe_url(prof["portfolio"]))}" target="_blank">Portofolio ↗</a>')
+        links_html = f'<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;">{"".join(links_list)}</div>' if links_list else ""
+
         html(f"""
-            <div class="catalog-header">
-                <div>
-                    <div style="font-size:28px;font-weight:800;letter-spacing:-0.03em;color:#fff;line-height:1.1;">Profil Kolaborator</div>
-                    <div style="font-size:13.5px;color:var(--muted);margin-top:6px;">Atur data akademik, peran utama, dan keahlian untuk pencocokan rekan tim.</div>
+            <div class="sec-head" style="margin: 24px auto 34px;">
+                <div class="sec-eyebrow">PORTOFOLIO KOLABORATOR &nbsp;·&nbsp; FASILKOM UI</div>
+                <div class="sec-title" style="font-size:clamp(34px, 4.6vw, 56px);">{esc(disp_title)}</div>
+                <div class="sec-desc">{esc(disp_sub)}</div>
+            </div>
+
+            <div class="spec-grid-3" style="margin-bottom: 36px;">
+                <div class="spec-box">
+                    <div style="font-size:11px;font-weight:700;letter-spacing:.14em;color:var(--brown-light);">AFILIASI &amp; PERAN</div>
+                    <div class="spec-big-num">{prof['year']}</div>
+                    <div style="font-size:17px;font-weight:800;color:#fff;margin-bottom:6px;">{esc(prof['campus'] or 'Universitas Belum Diisi')}</div>
+                    <div style="font-size:13px;color:var(--muted);line-height:1.55;margin-bottom:12px;">
+                        Program Studi: <b style="color:#fff">{esc(prof['major'] or '—')}</b>
+                    </div>
+                    <div><span class="rect-tag" style="margin:0">{esc(prof.get('role', 'Kolaborator'))}</span></div>
                 </div>
-                <div style="font-size:13px;font-weight:700;color:var(--brown-light);background:var(--card);border:1px solid var(--border);padding:8px 16px;border-radius:8px;">
-                    {status_label}
+
+                <div class="spec-box">
+                    <div style="font-size:11px;font-weight:700;letter-spacing:.14em;color:var(--brown-light);">ARSITEKTUR KEAHLIAN</div>
+                    <div class="spec-big-num">{len(prof['skills'])} Skill</div>
+                    <div style="font-size:17px;font-weight:800;color:#fff;margin-bottom:10px;">Spesialisasi Aktif</div>
+                    <div>{skills_markup}</div>
+                </div>
+
+                <div class="spec-box">
+                    <div style="font-size:11px;font-weight:700;letter-spacing:.14em;color:var(--brown-light);">BOBOT &amp; KETERSEDIAAN</div>
+                    <div class="spec-big-num">{weight_pct}%</div>
+                    <div style="font-size:17px;font-weight:800;color:#fff;margin-bottom:6px;">Level {esc(prof['level'])}</div>
+                    <div style="font-size:13px;color:var(--muted);line-height:1.55;">
+                        Jadwal Kolaborasi: <b style="color:#fff">{esc(prof['availability'] or 'Fleksibel')}</b>
+                    </div>
+                    {links_html}
                 </div>
             </div>
         """)
 
         with st.form("profile_form"):
-            st.markdown("#### Informasi Akademik & Keahlian")
+            st.markdown("#### Perbarui Identitas Akademik & Keahlian")
             col_l, col_r = st.columns(2, gap="medium")
             with col_l:
                 name = st.text_input("Nama Lengkap *", value=prof["name"], placeholder="Farraj Bagas")
@@ -1196,7 +1236,7 @@ else:
                 contact = c_wa.text_input("Kontak WhatsApp / LinkedIn", value=prof.get("contact", ""), placeholder="wa.me/62812...")
                 portfolio = c_pf.text_input("Portofolio / GitHub", value=prof["portfolio"], placeholder="github.com/username")
 
-            if st.form_submit_button("Simpan Profil", width="stretch", type="primary"):
+            if st.form_submit_button("Simpan Perubahan Profil", width="stretch", type="primary"):
                 if not name.strip() or not skills:
                     st.error("Nama lengkap dan minimal 1 keahlian wajib diisi.")
                 else:
@@ -1207,32 +1247,6 @@ else:
                     }
                     st.toast("Profil berhasil disimpan.")
                     st.rerun()
-
-        if prof["name"] and prof["skills"]:
-            st.write("")
-            links_list = []
-            if prof.get("contact"):
-                links_list.append(f'<a class="action-link" style="height:34px !important;font-size:12px !important;" href="{esc(safe_url(prof["contact"]))}" target="_blank">WhatsApp / LinkedIn ↗</a>')
-            if prof.get("portfolio"):
-                links_list.append(f'<a class="action-link secondary" style="height:34px !important;font-size:12px !important;" href="{esc(safe_url(prof["portfolio"]))}" target="_blank">Portofolio ↗</a>')
-            links_html = f'<div style="display:flex;gap:8px;">{"".join(links_list)}</div>' if links_list else ""
-
-            html(f"""
-                <div class="arch-card hoverable">
-                    <div style="display:flex;justify-content:space-between;align-items:center;padding-bottom:12px;margin-bottom:12px;border-bottom:1px solid var(--border);flex-wrap:wrap;gap:10px;">
-                        <span class="rect-tag" style="margin:0">{esc(prof.get('role', 'Kolaborator'))}</span>
-                        <span style="font-size:12px;color:var(--muted);font-weight:600;">Level: <b style="color:#fff">{esc(prof['level'])}</b> &nbsp;|&nbsp; Jadwal: <b style="color:#fff">{esc(prof['availability'] or 'Fleksibel')}</b></span>
-                    </div>
-                    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:14px;">
-                        <div>
-                            <div style="font-size:20px;font-weight:800;letter-spacing:-0.025em;color:#fff;margin-bottom:4px;">{esc(prof['name'])}</div>
-                            <div style="font-size:12.5px;color:var(--muted);margin-bottom:12px;">{esc(prof['major'] or 'Program Studi')} · {esc(prof['campus'] or 'Universitas')} ({prof['year']})</div>
-                            <div>{badges(prof['skills'], muted=True)}</div>
-                        </div>
-                        {links_html}
-                    </div>
-                </div>
-            """)
 
     # --------------------------------------------------------------------------
     # HALAMAN 2: KOMPETISI
