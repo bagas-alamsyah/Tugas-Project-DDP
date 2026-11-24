@@ -18,12 +18,13 @@ st.set_page_config(
 # 1. State Initialization (tanpa data dummy bawaan)
 st.session_state.setdefault("view", "landing")  # "landing" | "login" | "signup" | "app"
 st.session_state.setdefault("accounts", {})
+st.session_state.setdefault("current_account", "")
 st.session_state.setdefault("active_page", "Profil")
 st.session_state.setdefault("selected_comp", "Semua Kompetisi")
 st.session_state.setdefault("user_profile", {
     "name": "", "major": "", "year": 2026, "campus": "",
     "role": "Software / Fullstack Developer", "skills": [],
-    "level": "Menengah", "availability": "", "contact": "", "portfolio": ""
+    "level": "Menengah", "availability": "", "contact": "", "portfolio": "", "photo": ""
 })
 st.session_state.setdefault("competitions", [])
 st.session_state.setdefault("candidates", [])
@@ -35,6 +36,15 @@ CAT_OPTS = ["Hackathon", "Business Case", "UI/UX Design", "Data Science", "Compe
 LEVEL_OPTS = ["Pemula", "Menengah", "Mahir"]
 LEVEL_WEIGHTS = {"Pemula": 0.6, "Menengah": 0.8, "Mahir": 1.0}
 PAGES = ["Profil", "Kompetisi", "Rekomendasi", "Tim Saya"]
+
+AVATAR_PORTRAITS = [
+    "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80",
+    "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?auto=format&fit=crop&w=300&q=80",
+    "https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=300&q=80",
+    "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=300&q=80",
+    "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=300&q=80",
+    "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=300&q=80",
+]
 
 BG_PHOTOS = {
     "auth": "https://images.unsplash.com/photo-1504384308090-c894fdcc538d?auto=format&fit=crop&w=2000&q=85",
@@ -57,10 +67,19 @@ def set_view(target: str) -> None:
     st.rerun()
 
 
-def avatar(name: str, size: int = 40) -> str:
-    """Return HTML squared monogram badge for a given name."""
-    ch = esc((name or "?")[:1].upper())
-    return f'<div class="monogram" style="--s:{size}px">{ch}</div>'
+def avatar(name: str, size: int = 64, photo_url: str = "") -> str:
+    """Return circular profile photo avatar HTML for a given collaborator name."""
+    idx = sum(ord(ch) for ch in (name or "U")) % len(AVATAR_PORTRAITS)
+    src = safe_url(photo_url) if photo_url and photo_url.strip() else AVATAR_PORTRAITS[idx]
+    return (
+        f'<div style="width:{size}px;height:{size}px;min-width:{size}px;border-radius:50%;'
+        f'overflow:hidden;border:2.5px solid var(--brown-light);'
+        f'box-shadow:0 10px 26px rgba(0,0,0,0.65),0 0 0 4px rgba(196,154,108,0.14);'
+        f'background:var(--brown-soft);display:inline-flex;align-items:center;justify-content:center;">'
+        f'<img src="{esc(src)}" alt="{esc(name or "Avatar")}" '
+        f'style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block;" />'
+        f'</div>'
+    )
 
 
 def badges(items: list, muted: bool = False) -> str:
@@ -1077,11 +1096,15 @@ elif curr_view == "login":
                 if not email_in.strip() or not pass_in.strip():
                     st.error("Masukkan email/username dan kata sandi.")
                 else:
-                    acc = st.session_state.accounts.get(email_in.strip().lower())
+                    acc_key = email_in.strip().lower()
+                    acc = st.session_state.accounts.get(acc_key)
                     if acc and acc["password"] != pass_in:
                         st.error("Kata sandi tidak sesuai.")
                     else:
-                        if acc:
+                        st.session_state.current_account = acc_key
+                        if acc and "profile" in acc:
+                            st.session_state.user_profile = dict(acc["profile"])
+                        elif acc:
                             st.session_state.user_profile["name"] = acc["name"]
                             st.session_state.user_profile["campus"] = acc["campus"]
                         elif not st.session_state.user_profile["name"]:
@@ -1117,13 +1140,20 @@ elif curr_view == "signup":
                 if not reg_name.strip() or not reg_email.strip() or not reg_pass.strip():
                     st.error("Nama lengkap, email, dan kata sandi wajib diisi.")
                 else:
-                    st.session_state.accounts[reg_email.strip().lower()] = {
+                    acc_key = reg_email.strip().lower()
+                    new_prof = {
+                        "name": reg_name.strip(), "major": "", "year": 2026, "campus": reg_campus.strip(),
+                        "role": "Software / Fullstack Developer", "skills": [],
+                        "level": "Menengah", "availability": "", "contact": "", "portfolio": "", "photo": ""
+                    }
+                    st.session_state.accounts[acc_key] = {
                         "name": reg_name.strip(),
                         "campus": reg_campus.strip(),
                         "password": reg_pass,
+                        "profile": dict(new_prof),
                     }
-                    st.session_state.user_profile["name"] = reg_name.strip()
-                    st.session_state.user_profile["campus"] = reg_campus.strip()
+                    st.session_state.current_account = acc_key
+                    st.session_state.user_profile = dict(new_prof)
                     set_view("app")
 
         if st.button("Sudah punya akun? Log In →", width="stretch", type="secondary"):
@@ -1140,9 +1170,10 @@ else:
     with st.sidebar:
         u_label = esc(prof["name"] or "Mahasiswa")
         u_camp = esc(prof["campus"] or "Fasilkom UI")
+        side_avatar = avatar(prof["name"], size=36, photo_url=prof.get("photo", ""))
         html(f"""
             <div style="display:flex;align-items:center;gap:11px;padding-bottom:14px;margin-bottom:14px;border-bottom:1px solid var(--border);">
-                <div style="width:32px;height:32px;border-radius:8px;background:linear-gradient(135deg,#9C6B43,#6F4E37);color:#FFFFFF;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:12px;letter-spacing:-0.04em;border:1px solid var(--brown-light);">CT</div>
+                {side_avatar}
                 <div style="min-width:0;">
                     <div style="font-size:13px;font-weight:800;letter-spacing:-0.02em;color:#fff;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">CARI TEMAN LOMBA</div>
                     <div style="font-size:11px;color:var(--brown-light);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{u_label} · {u_camp}</div>
@@ -1160,7 +1191,7 @@ else:
             set_view("landing")
 
     # --------------------------------------------------------------------------
-    # HALAMAN 1: PROFIL (Editorial Stage Header + Big-Number Bento Grid + Form Studio)
+    # HALAMAN 1: PROFIL (Editorial Stage Header + Circular Photo + Big-Number Bento Grid)
     # --------------------------------------------------------------------------
     if page == "Profil":
         disp_title = prof["name"] if prof["name"] else "Bangun Identitas Kolaborasimu."
@@ -1171,6 +1202,7 @@ else:
         )
         weight_pct = int(LEVEL_WEIGHTS.get(prof["level"], 0.8) * 100)
         skills_markup = badges(prof["skills"]) if prof["skills"] else '<span class="rect-tag subtle">Belum ada skill dipilih</span>'
+        hero_avatar = avatar(prof["name"], size=96, photo_url=prof.get("photo", ""))
 
         links_list = []
         if prof.get("contact"):
@@ -1180,7 +1212,8 @@ else:
         links_html = f'<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;">{"".join(links_list)}</div>' if links_list else ""
 
         html(f"""
-            <div class="sec-head" style="margin: 24px auto 34px;">
+            <div class="sec-head" style="margin: 18px auto 34px;">
+                <div style="margin-bottom:14px;">{hero_avatar}</div>
                 <div class="sec-eyebrow">PORTOFOLIO KOLABORATOR &nbsp;·&nbsp; FASILKOM UI</div>
                 <div class="sec-title" style="font-size:clamp(34px, 4.6vw, 56px);">{esc(disp_title)}</div>
                 <div class="sec-desc">{esc(disp_sub)}</div>
@@ -1227,6 +1260,7 @@ else:
                 c_maj, c_yr = st.columns([1.4, 0.8], gap="small")
                 major = c_maj.text_input("Program Studi", value=prof["major"], placeholder="Ilmu Komputer")
                 year = c_yr.number_input("Angkatan", 2015, 2030, prof["year"])
+                photo_in = st.text_input("URL Foto Profil (Opsional)", value=prof.get("photo", ""), placeholder="https://...")
             with col_r:
                 skills = st.multiselect("Keahlian Utama *", SKILL_OPTS, default=prof["skills"])
                 curr_lvl = prof.get("level", "Menengah")
@@ -1240,11 +1274,18 @@ else:
                 if not name.strip() or not skills:
                     st.error("Nama lengkap dan minimal 1 keahlian wajib diisi.")
                 else:
-                    st.session_state.user_profile = {
+                    updated_prof = {
                         "name": name.strip(), "major": major.strip(), "year": year, "campus": campus.strip(),
                         "role": role, "skills": skills, "level": level,
-                        "availability": avail.strip(), "contact": contact.strip(), "portfolio": portfolio.strip()
+                        "availability": avail.strip(), "contact": contact.strip(),
+                        "portfolio": portfolio.strip(), "photo": photo_in.strip()
                     }
+                    st.session_state.user_profile = updated_prof
+                    curr_acc = st.session_state.get("current_account", "")
+                    if curr_acc and curr_acc in st.session_state.accounts:
+                        st.session_state.accounts[curr_acc]["name"] = updated_prof["name"]
+                        st.session_state.accounts[curr_acc]["campus"] = updated_prof["campus"]
+                        st.session_state.accounts[curr_acc]["profile"] = dict(updated_prof)
                     st.toast("Profil berhasil disimpan.")
                     st.rerun()
 
@@ -1358,84 +1399,227 @@ else:
                         st.rerun()
 
     # --------------------------------------------------------------------------
-    # HALAMAN 3: REKOMENDASI
+    # HALAMAN 3: REKOMENDASI (Circular Profile Photo Cards + 50-30-20 Matching)
     # --------------------------------------------------------------------------
     elif page == "Rekomendasi":
-        candidates = st.session_state.candidates
+        collaborator_pool = [
+            {
+                "name": "Nadia Putri Rahmadani",
+                "campus": "Universitas Indonesia",
+                "major": "Ilmu Komputer",
+                "role": "Data / ML Engineer",
+                "skills": ["Python", "Machine Learning", "Backend"],
+                "level": "Mahir",
+                "availability": "Malam & Akhir Pekan",
+                "contact": "https://wa.me/628121000001",
+                "photo": AVATAR_PORTRAITS[0],
+            },
+            {
+                "name": "Rafi Althaf Pratama",
+                "campus": "Universitas Indonesia",
+                "major": "Sistem Informasi",
+                "role": "UI/UX Designer",
+                "skills": ["UI/UX", "Frontend/Web", "Pitching"],
+                "level": "Mahir",
+                "availability": "Fleksibel",
+                "contact": "https://wa.me/628121000002",
+                "photo": AVATAR_PORTRAITS[1],
+            },
+            {
+                "name": "Alya Zahra Nabila",
+                "campus": "Universitas Indonesia",
+                "major": "Manajemen",
+                "role": "Business Analyst",
+                "skills": ["Business Analysis", "Finance", "Public Speaking", "Pitching"],
+                "level": "Mahir",
+                "availability": "Akhir Pekan",
+                "contact": "https://wa.me/628121000003",
+                "photo": AVATAR_PORTRAITS[2],
+            },
+            {
+                "name": "Kevin Danuarta",
+                "campus": "Institut Teknologi Bandung",
+                "major": "Teknik Informatika",
+                "role": "Backend Developer",
+                "skills": ["Python", "Backend", "Cyber Security"],
+                "level": "Menengah",
+                "availability": "Malam",
+                "contact": "https://wa.me/628121000004",
+                "photo": AVATAR_PORTRAITS[3],
+            },
+            {
+                "name": "Farhan Rizky Maulana",
+                "campus": "Universitas Indonesia",
+                "major": "Ilmu Komputer",
+                "role": "Frontend Developer",
+                "skills": ["Frontend/Web", "UI/UX", "Python"],
+                "level": "Menengah",
+                "availability": "Fleksibel",
+                "contact": "https://wa.me/628121000005",
+                "photo": AVATAR_PORTRAITS[4],
+            },
+            {
+                "name": "Clarissa Aurelia",
+                "campus": "Universitas Gadjah Mada",
+                "major": "Sistem Informasi",
+                "role": "Product & Pitcher",
+                "skills": ["Business Analysis", "Public Speaking", "Pitching", "UI/UX"],
+                "level": "Mahir",
+                "availability": "Malam & Akhir Pekan",
+                "contact": "https://wa.me/628121000006",
+                "photo": AVATAR_PORTRAITS[5],
+            },
+        ]
+        curr_acc = st.session_state.get("current_account", "")
+        account_candidates = [
+            acc["profile"]
+            for k, acc in st.session_state.accounts.items()
+            if k != curr_acc and acc.get("profile") and acc["profile"].get("name") and acc["profile"].get("skills")
+        ]
+        seen_names = {prof.get("name"), *[ac.get("name") for ac in account_candidates]}
+        candidates = account_candidates + [
+            c for c in collaborator_pool if c["name"] not in seen_names
+        ]
         comps = st.session_state.competitions
         comp_titles = ["Semua Kompetisi", *[c["title"] for c in comps]]
         if st.session_state.selected_comp not in comp_titles:
             st.session_state.selected_comp = "Semua Kompetisi"
 
         html(f"""
-            <div class="catalog-header">
-                <div>
-                    <div style="font-size:28px;font-weight:800;letter-spacing:-0.03em;color:#fff;line-height:1.1;">Rekomendasi Rekan Tim</div>
-                    <div style="font-size:13.5px;color:var(--muted);margin-top:6px;">Daftar kandidat rekan kolaborasi berdasarkan kesesuaian keahlian, peran, dan ketersediaan jadwal.</div>
-                </div>
-                <div style="font-size:13px;font-weight:700;color:var(--brown-light);background:var(--card);border:1px solid var(--border);padding:8px 16px;border-radius:8px;">
-                    {len(candidates)} Kandidat Tersedia
-                </div>
+            <div class="sec-head" style="margin-bottom:26px;">
+                <div class="sec-eyebrow">ALGORITMA PENCOCOKAN TIM &nbsp;·&nbsp; {len(candidates)} KANDIDAT TERSEDIA</div>
+                <div class="sec-title" style="font-size:clamp(34px, 4.6vw, 56px);">Rekomendasi Rekan Kolaborasi.</div>
+                <div class="sec-desc">Pilihan rekan kolaborasi yang paling selaras dengan profil, peran komplementer, dan target kompetisimu.</div>
             </div>
         """)
 
         c1, c2, c3 = st.columns([2.2, 1, 1], gap="small")
-        q_cand = c1.text_input("Cari Kandidat", placeholder="Cari nama, universitas, atau keahlian kandidat...", label_visibility="collapsed").strip().lower()
+        q_cand = c1.text_input("Cari Kandidat", placeholder="Cari nama, universitas, atau keahlian rekan...", label_visibility="collapsed").strip().lower()
         sel_title = c2.selectbox("Target Kompetisi", comp_titles, index=comp_titles.index(st.session_state.selected_comp), label_visibility="collapsed")
         st.session_state.selected_comp = sel_title
         role_filter = c3.selectbox("Filter Peran", ["Semua Peran", *ROLE_OPTS], label_visibility="collapsed")
 
-        if not prof["name"] or not prof["skills"]:
-            html("""
-                <div class="arch-card" style="text-align:center;padding:48px 28px !important;margin-top:8px;">
-                    <div style="font-size:18px;font-weight:800;letter-spacing:-0.02em;color:#fff;margin-bottom:6px;">Profil & Keahlian Belum Lengkap</div>
-                    <div style="font-size:13.5px;color:var(--muted);max-width:46ch;margin:0 auto;line-height:1.55;">
-                        Lengkapi nama dan minimal 1 keahlian pada halaman <b>Profil</b> terlebih dahulu untuk melihat peringkat kecocokan kandidat.
+        active_comp = next((c for c in comps if c["title"] == sel_title), None)
+        u_weight_pct = int(LEVEL_WEIGHTS.get(prof.get("level", "Menengah"), 0.8) * 100)
+        user_circ_avatar = avatar(prof.get("name", ""), size=48, photo_url=prof.get("photo", ""))
+        html(f"""
+            <div class="spec-master" style="padding:24px 28px;margin-top:10px;margin-bottom:18px;">
+                <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:16px;margin-bottom:16px;">
+                    <div style="display:flex;align-items:center;gap:14px;">
+                        {user_circ_avatar}
+                        <div>
+                            <div style="font-size:11px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--brown-light);margin-bottom:4px;">PARAMETER PENCOCOKAN AKTIF</div>
+                            <div style="font-size:clamp(16px, 2vw, 21px);font-weight:800;color:#fff;letter-spacing:-0.025em;">
+                                Target: {esc(sel_title)} &nbsp;·&nbsp; Peranmu: {esc(prof.get('role', 'Belum diatur'))}
+                            </div>
+                        </div>
+                    </div>
+                    <div style="font-size:12.5px;font-weight:700;color:var(--brown-light);background:var(--brown-soft);border:1px solid var(--border-strong);padding:6px 14px;border-radius:6px;">
+                        Bobot Levelmu: {esc(prof.get('level', 'Menengah'))} ({u_weight_pct}%)
+                    </div>
+                </div>
+                <div style="display:grid;grid-template-columns:5fr 3fr 2fr;gap:6px;height:10px;border-radius:99px;overflow:hidden;background:rgba(255,255,255,.06);">
+                    <div style="background:linear-gradient(90deg,#8B5E3C,#C49A6C);"></div>
+                    <div style="background:rgba(196,154,108,.65);"></div>
+                    <div style="background:rgba(196,154,108,.35);"></div>
+                </div>
+                <div style="display:grid;grid-template-columns:5fr 3fr 2fr;gap:6px;margin-top:8px;font-size:11px;font-weight:700;color:var(--muted);">
+                    <div>50% SKILL OVERLAP</div>
+                    <div>30% ROLE FIT</div>
+                    <div>20% TIME OVERLAP</div>
+                </div>
+            </div>
+        """)
+
+        scored_list = []
+        for c in candidates:
+            if role_filter != "Semua Peran" and c.get("role") and c.get("role") != role_filter:
+                continue
+            haystack = f"{c['name']} {c['campus']} {c['major']} {' '.join(c['skills'])}".lower()
+            if q_cand and q_cand not in haystack:
+                continue
+            score = compute_match_score(prof, c, active_comp)
+            scored_list.append((c, score))
+        scored_list.sort(key=lambda item: item[1], reverse=True)
+
+        if not scored_list:
+            empty_avatar = avatar(prof.get("name", ""), size=78, photo_url=prof.get("photo", ""))
+            html(f"""
+                <div class="spec-box" style="text-align:center;padding:42px 28px;margin-top:10px;">
+                    <div style="margin-bottom:14px;">{empty_avatar}</div>
+                    <div style="font-size:11px;font-weight:700;letter-spacing:.16em;color:var(--brown-light);margin-bottom:8px;">FILTER PENCARIAN</div>
+                    <div style="font-size:23px;font-weight:800;letter-spacing:-0.03em;color:#fff;margin-bottom:8px;">Tidak Ada Rekan dengan Kriteria Tersebut</div>
+                    <div style="font-size:13.5px;color:var(--muted);max-width:520px;margin:0 auto;line-height:1.6;">
+                        Coba ubah kata kunci pencarian atau pilih <b>Semua Peran</b> untuk melihat seluruh rekomendasi rekan yang cocok dengan profilmu.
                     </div>
                 </div>
             """)
         else:
-            active_comp = next((c for c in comps if c["title"] == sel_title), None)
-            scored_list = []
-            for c in candidates:
-                if role_filter != "Semua Peran" and c.get("role") and c.get("role") != role_filter:
-                    continue
-                haystack = f"{c['name']} {c['campus']} {c['major']} {' '.join(c['skills'])}".lower()
-                if q_cand and q_cand not in haystack:
-                    continue
-                score = compute_match_score(prof, c, active_comp)
-                scored_list.append((c, score))
-            scored_list.sort(key=lambda item: item[1], reverse=True)
-
-            if not scored_list:
-                html("""
-                    <div class="arch-card" style="text-align:center;padding:48px 28px !important;margin-top:8px;">
-                        <div style="font-size:18px;font-weight:800;letter-spacing:-0.02em;color:#fff;margin-bottom:6px;">Belum Ada Kandidat yang Sesuai</div>
-                        <div style="font-size:13.5px;color:var(--muted);max-width:46ch;margin:0 auto;line-height:1.55;">
-                            Daftar rekomendasi rekan tim akan otomatis tampil di sini saat data peserta telah tersedia.
-                        </div>
-                    </div>
-                """)
-            else:
-                cols = st.columns(2, gap="medium")
-                for i, (c, score) in enumerate(scored_list):
-                    avail_txt = c.get("availability") or c.get("avail", "Fleksibel")
-                    c_role = c.get("role", "Kolaborator")
-                    contact_btn = f'<a class="action-link secondary" style="width:100%;margin-top:12px;" href="{esc(safe_url(c["contact"]))}" target="_blank">Hubungi {esc(c["name"].split()[0])} ↗</a>' if c.get("contact") else ""
-                    with cols[i % 2]:
-                        html(f"""
-                            <div class="arch-card hoverable" style="margin-bottom:12px;">
-                                <div style="display:flex;justify-content:space-between;align-items:center;padding-bottom:12px;margin-bottom:12px;border-bottom:1px solid var(--border);">
-                                    <span class="rect-tag" style="margin:0">{esc(c_role)}</span>
-                                    <span style="font-size:12.5px;color:var(--muted);font-weight:600;">Kecocokan: <b style="color:var(--brown-light)">{score}%</b></span>
+            cols = st.columns(2, gap="medium")
+            for i, (c, score) in enumerate(scored_list):
+                avail_txt = c.get("availability") or c.get("avail", "Fleksibel")
+                c_role = c.get("role", "Kolaborator")
+                c_level = c.get("level", "Menengah")
+                fit_reason = "Peran Komplementer" if c_role != prof.get("role") else "Keahlian Sejenis"
+                cand_avatar = avatar(c["name"], size=68, photo_url=c.get("photo", ""))
+                with cols[i % 2]:
+                    html(f"""
+                        <div class="spec-box" style="padding:24px 26px;margin-bottom:10px;">
+                            <div style="display:flex;justify-content:space-between;align-items:center;gap:14px;margin-bottom:14px;">
+                                <div style="display:flex;align-items:center;gap:14px;min-width:0;">
+                                    {cand_avatar}
+                                    <div style="min-width:0;">
+                                        <div style="margin-bottom:4px;">
+                                            <span class="rect-tag" style="margin:0 5px 0 0;">{esc(c_role)}</span>
+                                            <span class="rect-tag subtle" style="margin:0;">{esc(fit_reason)}</span>
+                                        </div>
+                                        <div style="font-size:21px;font-weight:800;letter-spacing:-0.025em;color:#fff;line-height:1.2;">{esc(c['name'])}</div>
+                                        <div style="font-size:12.5px;color:var(--muted);margin-top:2px;">{esc(c.get('major') or 'Mahasiswa')} · {esc(c.get('campus') or 'Universitas')}</div>
+                                    </div>
                                 </div>
-                                <div style="font-size:20px;font-weight:800;letter-spacing:-0.025em;color:#fff;margin-bottom:4px;">{esc(c['name'])}</div>
-                                <div style="font-size:12.5px;color:var(--muted);margin-bottom:14px;">{esc(c['major'])} · {esc(c['campus'])} &nbsp;|&nbsp; Jadwal: {esc(avail_txt)}</div>
-                                <div style="font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--brown-light);margin-bottom:6px;">Keahlian</div>
-                                <div>{badges(c['skills'], muted=True)}</div>
-                                {contact_btn}
+                                <div style="text-align:right;flex:none;">
+                                    <div style="font-size:34px;font-weight:900;letter-spacing:-0.04em;color:var(--brown-light);line-height:1;">{score}%</div>
+                                    <div style="font-size:10px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-top:3px;">MATCH</div>
+                                </div>
                             </div>
-                        """)
+                            <div class="bar-track" style="margin:4px 0 14px 0;">
+                                <div class="bar-fill" style="width:{score}%;"></div>
+                            </div>
+                            <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--ink);margin-bottom:12px;">
+                                <span>Level: <b style="color:var(--brown-light)">{esc(c_level)}</b></span>
+                                <span>Jadwal: <b>{esc(avail_txt)}</b></span>
+                            </div>
+                            <div style="font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--brown-light);margin-bottom:6px;">Arsitektur Keahlian</div>
+                            <div>{badges(c['skills'], muted=True)}</div>
+                        </div>
+                    """)
+                    act1, act2 = st.columns(2, gap="small")
+                    with act1:
+                        if st.button(f"+ Ajak {c['name'].split()[0]} ke Tim", key=f"invite_cand_{i}", width="stretch", type="primary"):
+                            target_comp = sel_title if sel_title != "Semua Kompetisi" else (comps[0]["title"] if comps else "Kompetisi Umum")
+                            leader = prof.get("name") or "Ketua Tim"
+                            existing_team = next((t for t in st.session_state.teams if t["competition"] == target_comp), None)
+                            if existing_team:
+                                if c["name"] in existing_team["members"]:
+                                    st.toast(f"{c['name']} sudah berada di {existing_team['name']}.")
+                                elif len(existing_team["members"]) >= existing_team["max_size"]:
+                                    st.toast(f"{existing_team['name']} sudah penuh.")
+                                else:
+                                    existing_team["members"].append(c["name"])
+                                    st.toast(f"{c['name']} berhasil direkrut ke {existing_team['name']}!")
+                            else:
+                                st.session_state.teams.append({
+                                    "name": f"Tim {leader.split()[0]}",
+                                    "competition": target_comp,
+                                    "max_size": 3,
+                                    "members": [leader, c["name"]],
+                                    "roles_needed": [r for r in ROLE_OPTS if r not in {prof.get("role"), c_role}][:2],
+                                    "contact": prof.get("contact", ""),
+                                })
+                                st.toast(f"Tim baru dibentuk bersama {c['name']}! Cek di halaman Tim Saya.")
+                    with act2:
+                        if c.get("contact"):
+                            html(f'<a class="action-link secondary" style="width:100%" href="{esc(safe_url(c["contact"]))}" target="_blank">Hubungi {esc(c["name"].split()[0])} ↗</a>')
 
     # --------------------------------------------------------------------------
     # HALAMAN 4: TIM SAYA
