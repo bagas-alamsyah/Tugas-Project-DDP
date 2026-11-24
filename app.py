@@ -42,8 +42,8 @@ AVATAR_PORTRAITS = [
     "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?auto=format&fit=crop&w=300&q=80",
     "https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=300&q=80",
     "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=300&q=80",
-    "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=300&q=80",
     "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=300&q=80",
+    "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=300&q=80",
 ]
 
 BG_PHOTOS = {
@@ -101,32 +101,38 @@ def compute_match_score(user: dict, cand: dict, comp: dict | None = None) -> int
 
     u_skills = set(user.get("skills", []))
     c_skills = set(cand.get("skills", []))
-    req_skills = set(comp.get("required_skills", [])) if comp else (u_skills | c_skills)
     weight = LEVEL_WEIGHTS.get(cand.get("level", "Menengah"), 0.8)
 
-    if req_skills:
+    if comp and comp.get("required_skills"):
+        req_skills = set(comp["required_skills"])
         overlap = len(c_skills & req_skills) / max(len(req_skills), 1)
+    elif u_skills:
+        comp_skills = len(c_skills - u_skills) + 0.65 * len(c_skills & u_skills)
+        overlap = min(1.0, comp_skills / max(len(u_skills) + 1, 4))
     else:
-        comp_skills = len(c_skills - u_skills) + 0.5 * len(c_skills & u_skills)
-        overlap = min(1.0, comp_skills / max(len(u_skills) or 1, 3))
-    skill_score = min(1.0, overlap * weight + 0.25)
+        overlap = min(1.0, len(c_skills) / 4.2)
+    skill_score = min(1.0, overlap * weight + 0.14)
 
     c_role = cand.get("role", "")
     needed_roles = comp.get("roles_needed", []) if comp else []
     if needed_roles:
-        role_score = 1.0 if c_role in needed_roles else 0.55
+        role_score = 1.0 if c_role in needed_roles else 0.58
     else:
-        role_score = 1.0 if c_role and c_role != user.get("role") else 0.7
+        role_score = 0.96 if c_role and c_role != user.get("role") else 0.72
 
     u_time = set(user.get("availability", "").lower().replace(",", " ").split())
     c_time_raw = (cand.get("availability") or cand.get("avail", "")).lower()
     c_time = set(c_time_raw.replace(",", " ").split())
-    if "fleksibel" in c_time_raw or (u_time and (u_time & c_time)):
-        time_score = 1.0
+    if "fleksibel" in c_time_raw:
+        time_score = 0.98
+    elif u_time and (u_time & c_time):
+        time_score = 0.92
+    elif "malam" in c_time_raw and "pekan" in c_time_raw:
+        time_score = 0.86
     elif not u_time or not c_time:
-        time_score = 0.75
+        time_score = 0.78
     else:
-        time_score = 0.5
+        time_score = 0.64
 
     final = round((skill_score * 0.5 + role_score * 0.3 + time_score * 0.2) * 100)
     return max(1, min(99, final))
@@ -1555,71 +1561,78 @@ else:
                 </div>
             """)
         else:
-            cols = st.columns(2, gap="medium")
-            for i, (c, score) in enumerate(scored_list):
-                avail_txt = c.get("availability") or c.get("avail", "Fleksibel")
-                c_role = c.get("role", "Kolaborator")
-                c_level = c.get("level", "Menengah")
-                fit_reason = "Peran Komplementer" if c_role != prof.get("role") else "Keahlian Sejenis"
-                cand_avatar = avatar(c["name"], size=68, photo_url=c.get("photo", ""))
-                with cols[i % 2]:
-                    html(f"""
-                        <div class="spec-box" style="padding:24px 26px;margin-bottom:10px;">
-                            <div style="display:flex;justify-content:space-between;align-items:center;gap:14px;margin-bottom:14px;">
-                                <div style="display:flex;align-items:center;gap:14px;min-width:0;">
-                                    {cand_avatar}
-                                    <div style="min-width:0;">
-                                        <div style="margin-bottom:4px;">
-                                            <span class="rect-tag" style="margin:0 5px 0 0;">{esc(c_role)}</span>
-                                            <span class="rect-tag subtle" style="margin:0;">{esc(fit_reason)}</span>
+            for row_start in range(0, len(scored_list), 2):
+                cols = st.columns(2, gap="medium")
+                for col_idx, (c, score) in enumerate(scored_list[row_start:row_start + 2]):
+                    i = row_start + col_idx
+                    avail_txt = c.get("availability") or c.get("avail", "Fleksibel")
+                    c_role = c.get("role", "Kolaborator")
+                    c_level = c.get("level", "Menengah")
+                    fit_reason = "Peran Komplementer" if c_role != prof.get("role") else "Keahlian Sejenis"
+                    cand_avatar = avatar(c["name"], size=64, photo_url=c.get("photo", ""))
+                    with cols[col_idx]:
+                        html(f"""
+                            <div class="spec-box" style="height:256px;padding:22px 24px;margin-bottom:10px;display:flex;flex-direction:column;justify-content:space-between;box-sizing:border-box;">
+                                <div style="display:flex;justify-content:space-between;align-items:center;gap:14px;">
+                                    <div style="display:flex;align-items:center;gap:14px;min-width:0;flex:1;">
+                                        {cand_avatar}
+                                        <div style="min-width:0;flex:1;">
+                                            <div style="display:flex;align-items:center;gap:6px;margin-bottom:5px;flex-wrap:nowrap;overflow:hidden;">
+                                                <span class="rect-tag" style="margin:0;white-space:nowrap;">{esc(c_role)}</span>
+                                                <span class="rect-tag subtle" style="margin:0;white-space:nowrap;">{esc(fit_reason)}</span>
+                                            </div>
+                                            <div style="font-size:20px;font-weight:800;letter-spacing:-0.025em;color:#fff;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{esc(c['name'])}</div>
+                                            <div style="font-size:12.5px;color:var(--muted);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{esc(c.get('major') or 'Mahasiswa')} · {esc(c.get('campus') or 'Universitas')}</div>
                                         </div>
-                                        <div style="font-size:21px;font-weight:800;letter-spacing:-0.025em;color:#fff;line-height:1.2;">{esc(c['name'])}</div>
-                                        <div style="font-size:12.5px;color:var(--muted);margin-top:2px;">{esc(c.get('major') or 'Mahasiswa')} · {esc(c.get('campus') or 'Universitas')}</div>
+                                    </div>
+                                    <div style="text-align:right;flex:none;padding-left:8px;">
+                                        <div style="font-size:34px;font-weight:900;letter-spacing:-0.04em;color:var(--brown-light);line-height:1;">{score}%</div>
+                                        <div style="font-size:10px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-top:4px;">MATCH</div>
                                     </div>
                                 </div>
-                                <div style="text-align:right;flex:none;">
-                                    <div style="font-size:34px;font-weight:900;letter-spacing:-0.04em;color:var(--brown-light);line-height:1;">{score}%</div>
-                                    <div style="font-size:10px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-top:3px;">MATCH</div>
+                                <div>
+                                    <div class="bar-track" style="margin:0 0 12px 0;">
+                                        <div class="bar-fill" style="width:{score}%;"></div>
+                                    </div>
+                                    <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--ink);">
+                                        <span>Level: <b style="color:var(--brown-light)">{esc(c_level)}</b></span>
+                                        <span>Jadwal: <b>{esc(avail_txt)}</b></span>
+                                    </div>
+                                </div>
+                                <div>
+                                    <div style="font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--brown-light);margin-bottom:6px;">Arsitektur Keahlian</div>
+                                    <div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{badges(c['skills'], muted=True)}</div>
                                 </div>
                             </div>
-                            <div class="bar-track" style="margin:4px 0 14px 0;">
-                                <div class="bar-fill" style="width:{score}%;"></div>
-                            </div>
-                            <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--ink);margin-bottom:12px;">
-                                <span>Level: <b style="color:var(--brown-light)">{esc(c_level)}</b></span>
-                                <span>Jadwal: <b>{esc(avail_txt)}</b></span>
-                            </div>
-                            <div style="font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--brown-light);margin-bottom:6px;">Arsitektur Keahlian</div>
-                            <div>{badges(c['skills'], muted=True)}</div>
-                        </div>
-                    """)
-                    act1, act2 = st.columns(2, gap="small")
-                    with act1:
-                        if st.button(f"+ Ajak {c['name'].split()[0]} ke Tim", key=f"invite_cand_{i}", width="stretch", type="primary"):
-                            target_comp = sel_title if sel_title != "Semua Kompetisi" else (comps[0]["title"] if comps else "Kompetisi Umum")
-                            leader = prof.get("name") or "Ketua Tim"
-                            existing_team = next((t for t in st.session_state.teams if t["competition"] == target_comp), None)
-                            if existing_team:
-                                if c["name"] in existing_team["members"]:
-                                    st.toast(f"{c['name']} sudah berada di {existing_team['name']}.")
-                                elif len(existing_team["members"]) >= existing_team["max_size"]:
-                                    st.toast(f"{existing_team['name']} sudah penuh.")
+                        """)
+                        act1, act2 = st.columns(2, gap="small")
+                        with act1:
+                            if st.button(f"+ Ajak {c['name'].split()[0]} ke Tim", key=f"invite_cand_{i}", width="stretch", type="primary"):
+                                target_comp = sel_title if sel_title != "Semua Kompetisi" else (comps[0]["title"] if comps else "Kompetisi Umum")
+                                leader = prof.get("name") or "Ketua Tim"
+                                existing_team = next((t for t in st.session_state.teams if t["competition"] == target_comp), None)
+                                if existing_team:
+                                    if c["name"] in existing_team["members"]:
+                                        st.toast(f"{c['name']} sudah berada di {existing_team['name']}.")
+                                    elif len(existing_team["members"]) >= existing_team["max_size"]:
+                                        st.toast(f"{existing_team['name']} sudah penuh.")
+                                    else:
+                                        existing_team["members"].append(c["name"])
+                                        st.toast(f"{c['name']} berhasil direkrut ke {existing_team['name']}!")
                                 else:
-                                    existing_team["members"].append(c["name"])
-                                    st.toast(f"{c['name']} berhasil direkrut ke {existing_team['name']}!")
-                            else:
-                                st.session_state.teams.append({
-                                    "name": f"Tim {leader.split()[0]}",
-                                    "competition": target_comp,
-                                    "max_size": 3,
-                                    "members": [leader, c["name"]],
-                                    "roles_needed": [r for r in ROLE_OPTS if r not in {prof.get("role"), c_role}][:2],
-                                    "contact": prof.get("contact", ""),
-                                })
-                                st.toast(f"Tim baru dibentuk bersama {c['name']}! Cek di halaman Tim Saya.")
-                    with act2:
-                        if c.get("contact"):
-                            html(f'<a class="action-link secondary" style="width:100%" href="{esc(safe_url(c["contact"]))}" target="_blank">Hubungi {esc(c["name"].split()[0])} ↗</a>')
+                                    st.session_state.teams.append({
+                                        "name": f"Tim {leader.split()[0]}",
+                                        "competition": target_comp,
+                                        "max_size": 3,
+                                        "members": [leader, c["name"]],
+                                        "roles_needed": [r for r in ROLE_OPTS if r not in {prof.get("role"), c_role}][:2],
+                                        "contact": prof.get("contact", ""),
+                                    })
+                                    st.toast(f"Tim baru dibentuk bersama {c['name']}! Cek di halaman Tim Saya.")
+                        with act2:
+                            if c.get("contact"):
+                                html(f'<a class="action-link secondary" style="width:100%" href="{esc(safe_url(c["contact"]))}" target="_blank">Hubungi {esc(c["name"].split()[0])} ↗</a>')
+                st.write("")
 
     # --------------------------------------------------------------------------
     # HALAMAN 4: TIM SAYA
