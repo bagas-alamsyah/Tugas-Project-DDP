@@ -236,48 +236,70 @@ def safe_url(url: str) -> str:
     return u if u.startswith(("http://", "https://")) else f"https://{u}"
 
 
-def compute_match_score(user: dict, cand: dict, comp: dict | None = None) -> int:
-    """Compute matching percentage using README formula: 0.5*skill + 0.3*role + 0.2*time."""
-    if "match" in cand and not comp:
-        return int(cand["match"])
-
+def compute_match_breakdown(user: dict, cand: dict, comp: dict | None = None) -> tuple[int, int, int, int]:
+    """Return (final_score, skill_pct, role_pct, time_pct) using README 50-30-20 formula."""
     u_skills = set(user.get("skills", []))
     c_skills = set(cand.get("skills", []))
-    weight = LEVEL_WEIGHTS.get(cand.get("level", "Menengah"), 0.8)
+    c_levels = cand.get("skill_levels") or {}
+    default_lvl = cand.get("level", "Menengah")
+
+    def avg_skill_weight(skills_subset: set) -> float:
+        """Compute average level weight (0.6..1.0) across a set of skills."""
+        target = skills_subset or c_skills
+        if not target:
+            return LEVEL_WEIGHTS.get(default_lvl, 0.8)
+        return sum(LEVEL_WEIGHTS.get(c_levels.get(s, default_lvl), 0.8) for s in target) / len(target)
 
     if comp and comp.get("required_skills"):
         req_skills = set(comp["required_skills"])
-        overlap = len(c_skills & req_skills) / max(len(req_skills), 1)
+        matched = c_skills & req_skills
+        overlap = len(matched) / max(len(req_skills), 1)
+        w = avg_skill_weight(matched)
     elif u_skills:
         comp_skills = len(c_skills - u_skills) + 0.65 * len(c_skills & u_skills)
-        overlap = min(1.0, comp_skills / max(len(u_skills) + 1, 4))
+        overlap = min(1.0, comp_skills / max(len(u_skills) + 1, 3.5))
+        w = avg_skill_weight(c_skills)
     else:
-        overlap = min(1.0, len(c_skills) / 4.2)
-    skill_score = min(1.0, overlap * weight + 0.14)
+        overlap = min(1.0, len(c_skills) / 3.8)
+        w = avg_skill_weight(c_skills)
+    skill_pct = min(99, max(45, round((overlap * w * 0.78 + 0.22) * 100)))
 
     c_role = cand.get("role", "")
+    u_role = user.get("role", "")
     needed_roles = comp.get("roles_needed", []) if comp else []
     if needed_roles:
-        role_score = 1.0 if c_role in needed_roles else 0.58
+        if c_role in needed_roles and c_role != u_role:
+            role_pct = 98
+        elif c_role in needed_roles:
+            role_pct = 86
+        else:
+            role_pct = 62
     else:
-        role_score = 0.96 if c_role and c_role != user.get("role") else 0.72
+        role_pct = 95 if (c_role and c_role != u_role) else 74
 
-    u_time = set(user.get("availability", "").lower().replace(",", " ").split())
+    u_slots = set(user.get("availability_slots") or [])
+    c_slots = set(cand.get("availability_slots") or [])
     c_time_raw = (cand.get("availability") or cand.get("avail", "")).lower()
-    c_time = set(c_time_raw.replace(",", " ").split())
-    if "fleksibel" in c_time_raw:
-        time_score = 0.98
-    elif u_time and (u_time & c_time):
-        time_score = 0.92
+    u_time_raw = user.get("availability", "").lower()
+    if "Fleksibel Setiap Hari" in c_slots or "Fleksibel Setiap Hari" in u_slots or "fleksibel" in c_time_raw:
+        time_pct = 96
+    elif u_slots and c_slots:
+        shared = len(u_slots & c_slots)
+        time_pct = 94 if shared >= 2 else (86 if shared == 1 else 64)
+    elif u_time_raw and any(tok in c_time_raw for tok in u_time_raw.replace(",", " ").split()):
+        time_pct = 90
     elif "malam" in c_time_raw and "pekan" in c_time_raw:
-        time_score = 0.86
-    elif not u_time or not c_time:
-        time_score = 0.78
+        time_pct = 86
     else:
-        time_score = 0.64
+        time_pct = 74
 
-    final = round((skill_score * 0.5 + role_score * 0.3 + time_score * 0.2) * 100)
-    return max(1, min(99, final))
+    final = round(skill_pct * 0.5 + role_pct * 0.3 + time_pct * 0.2)
+    return max(1, min(99, final)), skill_pct, role_pct, time_pct
+
+
+def compute_match_score(user: dict, cand: dict, comp: dict | None = None) -> int:
+    """Compute matching percentage using README formula: 0.5*skill + 0.3*role + 0.2*time."""
+    return compute_match_breakdown(user, cand, comp)[0]
 
 
 # 3. Architectural CSS + Scroll-Driven Animations (Apple / ASUS Product Showcase Style)
@@ -1609,7 +1631,7 @@ else:
                 st.write("")
 
     # --------------------------------------------------------------------------
-    # HALAMAN 3: REKOMENDASI (Circular Profile Photo Cards + 50-30-20 Matching)
+    # HALAMAN 3: REKOMENDASI (Circular Avatar Cards + 50-30-20 Breakdown per Card)
     # --------------------------------------------------------------------------
     elif page == "Rekomendasi":
         collaborator_pool = [
@@ -1619,8 +1641,10 @@ else:
                 "major": "Ilmu Komputer",
                 "role": "Data / ML Engineer",
                 "skills": ["Python", "Machine Learning", "Backend"],
+                "skill_levels": {"Python": "Mahir", "Machine Learning": "Mahir", "Backend": "Menengah"},
                 "level": "Mahir",
-                "availability": "Malam & Akhir Pekan",
+                "availability": "Senin–Jumat Malam (18:00–22:00), Sabtu–Minggu Sore–Malam (15:00–22:00)",
+                "availability_slots": ["Senin–Jumat Malam (18:00–22:00)", "Sabtu–Minggu Sore–Malam (15:00–22:00)"],
                 "contact": "https://wa.me/628121000001",
                 "photo": AVATAR_PORTRAITS[0],
             },
@@ -1630,8 +1654,10 @@ else:
                 "major": "Sistem Informasi",
                 "role": "UI/UX Designer",
                 "skills": ["UI/UX", "Frontend/Web", "Pitching"],
+                "skill_levels": {"UI/UX": "Mahir", "Frontend/Web": "Menengah", "Pitching": "Mahir"},
                 "level": "Mahir",
-                "availability": "Fleksibel",
+                "availability": "Fleksibel Setiap Hari",
+                "availability_slots": ["Fleksibel Setiap Hari"],
                 "contact": "https://wa.me/628121000002",
                 "photo": AVATAR_PORTRAITS[1],
             },
@@ -1641,8 +1667,10 @@ else:
                 "major": "Manajemen",
                 "role": "Business Analyst",
                 "skills": ["Business Analysis", "Finance", "Public Speaking", "Pitching"],
+                "skill_levels": {"Business Analysis": "Mahir", "Finance": "Mahir", "Public Speaking": "Menengah", "Pitching": "Mahir"},
                 "level": "Mahir",
-                "availability": "Akhir Pekan",
+                "availability": "Sabtu–Minggu Pagi–Siang (09:00–15:00), Sabtu–Minggu Sore–Malam (15:00–22:00)",
+                "availability_slots": ["Sabtu–Minggu Pagi–Siang (09:00–15:00)", "Sabtu–Minggu Sore–Malam (15:00–22:00)"],
                 "contact": "https://wa.me/628121000003",
                 "photo": AVATAR_PORTRAITS[2],
             },
@@ -1652,8 +1680,10 @@ else:
                 "major": "Teknik Informatika",
                 "role": "Backend Developer",
                 "skills": ["Python", "Backend", "Cyber Security"],
+                "skill_levels": {"Python": "Mahir", "Backend": "Mahir", "Cyber Security": "Menengah"},
                 "level": "Menengah",
-                "availability": "Malam",
+                "availability": "Senin–Jumat Malam (18:00–22:00)",
+                "availability_slots": ["Senin–Jumat Malam (18:00–22:00)"],
                 "contact": "https://wa.me/628121000004",
                 "photo": AVATAR_PORTRAITS[3],
             },
@@ -1663,8 +1693,10 @@ else:
                 "major": "Ilmu Komputer",
                 "role": "Frontend Developer",
                 "skills": ["Frontend/Web", "UI/UX", "Python"],
+                "skill_levels": {"Frontend/Web": "Mahir", "UI/UX": "Menengah", "Python": "Pemula"},
                 "level": "Menengah",
-                "availability": "Fleksibel",
+                "availability": "Senin–Jumat Sore (15:00–18:00), Senin–Jumat Malam (18:00–22:00)",
+                "availability_slots": ["Senin–Jumat Sore (15:00–18:00)", "Senin–Jumat Malam (18:00–22:00)"],
                 "contact": "https://wa.me/628121000005",
                 "photo": AVATAR_PORTRAITS[4],
             },
@@ -1674,8 +1706,10 @@ else:
                 "major": "Sistem Informasi",
                 "role": "Product & Pitcher",
                 "skills": ["Business Analysis", "Public Speaking", "Pitching", "UI/UX"],
+                "skill_levels": {"Business Analysis": "Menengah", "Public Speaking": "Mahir", "Pitching": "Mahir", "UI/UX": "Menengah"},
                 "level": "Mahir",
-                "availability": "Malam & Akhir Pekan",
+                "availability": "Senin–Jumat Malam (18:00–22:00), Sabtu–Minggu Pagi–Siang (09:00–15:00)",
+                "availability_slots": ["Senin–Jumat Malam (18:00–22:00)", "Sabtu–Minggu Pagi–Siang (09:00–15:00)"],
                 "contact": "https://wa.me/628121000006",
                 "photo": AVATAR_PORTRAITS[5],
             },
@@ -1696,10 +1730,10 @@ else:
             st.session_state.selected_comp = "Semua Kompetisi"
 
         html(f"""
-            <div class="sec-head" style="margin-bottom:26px;">
+            <div class="sec-head" style="margin-bottom:22px;">
                 <div class="sec-eyebrow">ALGORITMA PENCOCOKAN TIM &nbsp;·&nbsp; {len(candidates)} KANDIDAT TERSEDIA</div>
                 <div class="sec-title" style="font-size:clamp(34px, 4.6vw, 56px);">Rekomendasi Rekan Kolaborasi.</div>
-                <div class="sec-desc">Pilihan rekan kolaborasi yang paling selaras dengan profil, peran komplementer, dan target kompetisimu.</div>
+                <div class="sec-desc">Peringkat kandidat diurutkan otomatis dari skor tertinggi menggunakan rumus 50% Skill Overlap + 30% Role Fit + 20% Time Overlap.</div>
             </div>
         """)
 
@@ -1710,33 +1744,17 @@ else:
         role_filter = c3.selectbox("Filter Peran", ["Semua Peran", *ROLE_OPTS], label_visibility="collapsed")
 
         active_comp = next((c for c in comps if c["title"] == sel_title), None)
-        u_weight_pct = int(LEVEL_WEIGHTS.get(prof.get("level", "Menengah"), 0.8) * 100)
-        user_circ_avatar = avatar(prof.get("name", ""), size=48, photo_url=prof.get("photo", ""))
+        user_circ_avatar = avatar(prof.get("name", ""), size=36, photo_url=prof.get("photo", ""))
         html(f"""
-            <div class="spec-master" style="padding:24px 28px;margin-top:10px;margin-bottom:18px;">
-                <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:16px;margin-bottom:16px;">
-                    <div style="display:flex;align-items:center;gap:14px;">
-                        {user_circ_avatar}
-                        <div>
-                            <div style="font-size:11px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--brown-light);margin-bottom:4px;">PARAMETER PENCOCOKAN AKTIF</div>
-                            <div style="font-size:clamp(16px, 2vw, 21px);font-weight:800;color:#fff;letter-spacing:-0.025em;">
-                                Target: {esc(sel_title)} &nbsp;·&nbsp; Peranmu: {esc(prof.get('role', 'Belum diatur'))}
-                            </div>
-                        </div>
-                    </div>
-                    <div style="font-size:12.5px;font-weight:700;color:var(--brown-light);background:var(--brown-soft);border:1px solid var(--border-strong);padding:6px 14px;border-radius:6px;">
-                        Bobot Levelmu: {esc(prof.get('level', 'Menengah'))} ({u_weight_pct}%)
+            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;padding:12px 18px;margin-top:8px;margin-bottom:16px;background:rgba(18,14,12,0.78);backdrop-filter:blur(22px);border:1px solid var(--border);border-radius:12px;">
+                <div style="display:flex;align-items:center;gap:12px;">
+                    {user_circ_avatar}
+                    <div style="font-size:13px;color:var(--ink);">
+                        Target: <b style="color:#fff">{esc(sel_title)}</b> &nbsp;·&nbsp; Peranmu: <b style="color:var(--brown-light)">{esc(prof.get('role', 'Belum diatur'))}</b>
                     </div>
                 </div>
-                <div style="display:grid;grid-template-columns:5fr 3fr 2fr;gap:6px;height:10px;border-radius:99px;overflow:hidden;background:rgba(255,255,255,.06);">
-                    <div style="background:linear-gradient(90deg,#8B5E3C,#C49A6C);"></div>
-                    <div style="background:rgba(196,154,108,.65);"></div>
-                    <div style="background:rgba(196,154,108,.35);"></div>
-                </div>
-                <div style="display:grid;grid-template-columns:5fr 3fr 2fr;gap:6px;margin-top:8px;font-size:11px;font-weight:700;color:var(--muted);">
-                    <div>50% SKILL OVERLAP</div>
-                    <div>30% ROLE FIT</div>
-                    <div>20% TIME OVERLAP</div>
+                <div style="font-size:11.5px;font-weight:700;color:var(--brown-light);background:var(--brown-soft);border:1px solid var(--border-strong);padding:5px 12px;border-radius:6px;">
+                    Rumus: 0.50 × Skill + 0.30 × Role + 0.20 × Time
                 </div>
             </div>
         """)
@@ -1748,9 +1766,9 @@ else:
             haystack = f"{c['name']} {c['campus']} {c['major']} {' '.join(c['skills'])}".lower()
             if q_cand and q_cand not in haystack:
                 continue
-            score = compute_match_score(prof, c, active_comp)
-            scored_list.append((c, score))
-        scored_list.sort(key=lambda item: item[1], reverse=True)
+            breakdown = compute_match_breakdown(prof, c, active_comp)
+            scored_list.append((c, breakdown))
+        scored_list.sort(key=lambda item: item[1][0], reverse=True)
 
         if not scored_list:
             empty_avatar = avatar(prof.get("name", ""), size=78, photo_url=prof.get("photo", ""))
@@ -1767,16 +1785,17 @@ else:
         else:
             for row_start in range(0, len(scored_list), 2):
                 cols = st.columns(2, gap="medium")
-                for col_idx, (c, score) in enumerate(scored_list[row_start:row_start + 2]):
+                for col_idx, (c, (score, s_pct, r_pct, t_pct)) in enumerate(scored_list[row_start:row_start + 2]):
                     i = row_start + col_idx
                     avail_txt = c.get("availability") or c.get("avail", "Fleksibel")
                     c_role = c.get("role", "Kolaborator")
                     c_level = c.get("level", "Menengah")
                     fit_reason = "Peran Komplementer" if c_role != prof.get("role") else "Keahlian Sejenis"
-                    cand_avatar = avatar(c["name"], size=64, photo_url=c.get("photo", ""))
+                    cand_avatar = avatar(c["name"], size=62, photo_url=c.get("photo", ""))
+                    c_skills_html = skill_level_badges(c["skills"], c.get("skill_levels"), c_level)
                     with cols[col_idx]:
                         html(f"""
-                            <div class="spec-box" style="height:256px;padding:22px 24px;margin-bottom:10px;display:flex;flex-direction:column;justify-content:space-between;box-sizing:border-box;">
+                            <div class="spec-box" style="height:278px;padding:22px 24px;margin-bottom:10px;display:flex;flex-direction:column;justify-content:space-between;box-sizing:border-box;">
                                 <div style="display:flex;justify-content:space-between;align-items:center;gap:14px;">
                                     <div style="display:flex;align-items:center;gap:14px;min-width:0;flex:1;">
                                         {cand_avatar}
@@ -1795,17 +1814,27 @@ else:
                                     </div>
                                 </div>
                                 <div>
-                                    <div class="bar-track" style="margin:0 0 12px 0;">
+                                    <div class="bar-track" style="margin:0 0 10px 0;">
                                         <div class="bar-fill" style="width:{score}%;"></div>
                                     </div>
-                                    <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--ink);">
-                                        <span>Level: <b style="color:var(--brown-light)">{esc(c_level)}</b></span>
-                                        <span>Jadwal: <b>{esc(avail_txt)}</b></span>
+                                    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:8px;">
+                                        <div style="background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:6px;padding:5px 8px;font-size:11px;">
+                                            <span style="color:var(--muted);">Skill (50%):</span> <b style="color:var(--brown-light)">{s_pct}%</b>
+                                        </div>
+                                        <div style="background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:6px;padding:5px 8px;font-size:11px;">
+                                            <span style="color:var(--muted);">Role (30%):</span> <b style="color:var(--brown-light)">{r_pct}%</b>
+                                        </div>
+                                        <div style="background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:6px;padding:5px 8px;font-size:11px;">
+                                            <span style="color:var(--muted);">Time (20%):</span> <b style="color:var(--brown-light)">{t_pct}%</b>
+                                        </div>
+                                    </div>
+                                    <div style="font-size:11.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+                                        Jadwal: <b style="color:var(--ink)">{esc(avail_txt)}</b>
                                     </div>
                                 </div>
                                 <div>
-                                    <div style="font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--brown-light);margin-bottom:6px;">Arsitektur Keahlian</div>
-                                    <div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{badges(c['skills'], muted=True)}</div>
+                                    <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--brown-light);margin-bottom:5px;">Keahlian &amp; Tingkat Kemahiran</div>
+                                    <div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{c_skills_html}</div>
                                 </div>
                             </div>
                         """)
