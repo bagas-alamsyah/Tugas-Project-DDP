@@ -23,8 +23,9 @@ st.session_state.setdefault("active_page", "Profil")
 st.session_state.setdefault("selected_comp", "Semua Kompetisi")
 st.session_state.setdefault("user_profile", {
     "name": "", "major": "", "year": 2026, "campus": "",
-    "role": "Software / Fullstack Developer", "skills": [],
-    "level": "Menengah", "availability": "", "contact": "", "portfolio": "", "photo": ""
+    "role": "Software / Fullstack Developer", "skills": [], "skill_levels": {},
+    "level": "Menengah", "availability": "", "availability_slots": [],
+    "contact": "", "portfolio": "", "photo": ""
 })
 st.session_state.setdefault("competitions", [])
 st.session_state.setdefault("candidates", [])
@@ -35,6 +36,13 @@ ROLE_OPTS = ["Software / Fullstack Developer", "Frontend Developer", "Backend De
 CAT_OPTS = ["Hackathon", "Business Case", "UI/UX Design", "Data Science", "Competitive Programming"]
 LEVEL_OPTS = ["Pemula", "Menengah", "Mahir"]
 LEVEL_WEIGHTS = {"Pemula": 0.6, "Menengah": 0.8, "Mahir": 1.0}
+TIME_SLOT_OPTS = [
+    "Senin–Jumat Sore (15:00–18:00)",
+    "Senin–Jumat Malam (18:00–22:00)",
+    "Sabtu–Minggu Pagi–Siang (09:00–15:00)",
+    "Sabtu–Minggu Sore–Malam (15:00–22:00)",
+    "Fleksibel Setiap Hari",
+]
 PAGES = ["Profil", "Kompetisi", "Rekomendasi", "Tim Saya"]
 
 AVATAR_PORTRAITS = [
@@ -86,6 +94,17 @@ def badges(items: list, muted: bool = False) -> str:
     """Render a list of strings as structured rectangular tag spans."""
     cls = "rect-tag subtle" if muted else "rect-tag"
     return "".join(f'<span class="{cls}">{esc(str(s))}</span>' for s in items)
+
+
+def skill_level_badges(skills: list, skill_levels: dict | None = None, default_level: str = "Menengah") -> str:
+    """Render skill tags paired with their per-skill proficiency level."""
+    if not skills:
+        return '<span class="rect-tag subtle">Belum ada keahlian dipilih</span>'
+    levels = skill_levels or {}
+    return "".join(
+        f'<span class="rect-tag">{esc(str(s))} <span style="opacity:.72;font-weight:500;">· {esc(levels.get(s, default_level))}</span></span>'
+        for s in skills
+    )
 
 
 def safe_url(url: str) -> str:
@@ -1197,103 +1216,127 @@ else:
             set_view("landing")
 
     # --------------------------------------------------------------------------
-    # HALAMAN 1: PROFIL (Editorial Stage Header + Circular Photo + Big-Number Bento Grid)
+    # HALAMAN 1: PROFIL (Unified Profile Sheet + Per-Skill Levels + Weekly Time Slots)
     # --------------------------------------------------------------------------
     if page == "Profil":
         disp_title = prof["name"] if prof["name"] else "Bangun Identitas Kolaborasimu."
         disp_sub = (
-            f"{prof.get('role', 'Kolaborator')} · {prof['major'] or 'Program Studi'} · {prof['campus'] or 'Universitas'}"
+            f"{prof.get('role', 'Kolaborator')} · {prof['major'] or 'Program Studi'} · {prof['campus'] or 'Universitas'} (Angkatan {prof['year']})"
             if prof["name"]
-            else "Susun rekam jejak akademik, peran utama, dan keahlianmu sebagai fondasi algoritma pencocokan tim."
+            else "Susun profil akademik, keahlian beserta tingkat kemahirannya, dan slot jadwal kosong mingguan sesuai spesifikasi README."
         )
-        weight_pct = int(LEVEL_WEIGHTS.get(prof["level"], 0.8) * 100)
-        skills_markup = badges(prof["skills"]) if prof["skills"] else '<span class="rect-tag subtle">Belum ada skill dipilih</span>'
-        hero_avatar = avatar(prof["name"], size=96, photo_url=prof.get("photo", ""))
+        curr_skill_levels = prof.get("skill_levels") or {s: prof.get("level", "Menengah") for s in prof.get("skills", [])}
+        curr_slots = prof.get("availability_slots") or ([prof["availability"]] if prof.get("availability") else [])
+        skills_markup = skill_level_badges(prof.get("skills", []), curr_skill_levels, prof.get("level", "Menengah"))
+        slots_markup = badges(curr_slots, muted=True) if curr_slots else '<span class="rect-tag subtle">Belum ada slot jadwal dipilih</span>'
+        hero_avatar = avatar(prof["name"], size=88, photo_url=prof.get("photo", ""))
 
         links_list = []
         if prof.get("contact"):
-            links_list.append(f'<a class="action-link" style="height:32px !important;font-size:11.5px !important;" href="{esc(safe_url(prof["contact"]))}" target="_blank">WhatsApp / LinkedIn ↗</a>')
+            links_list.append(f'<a class="action-link" style="height:34px !important;font-size:12px !important;" href="{esc(safe_url(prof["contact"]))}" target="_blank">WhatsApp / LinkedIn ↗</a>')
         if prof.get("portfolio"):
-            links_list.append(f'<a class="action-link secondary" style="height:32px !important;font-size:11.5px !important;" href="{esc(safe_url(prof["portfolio"]))}" target="_blank">Portofolio ↗</a>')
-        links_html = f'<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;">{"".join(links_list)}</div>' if links_list else ""
+            links_list.append(f'<a class="action-link secondary" style="height:34px !important;font-size:12px !important;" href="{esc(safe_url(prof["portfolio"]))}" target="_blank">Portofolio / GitHub ↗</a>')
+        links_html = f'<div style="display:flex;flex-wrap:wrap;gap:8px;">{"".join(links_list)}</div>' if links_list else '<span class="rect-tag subtle">Kontak &amp; portofolio belum diisi</span>'
 
         html(f"""
-            <div class="sec-head" style="margin: 18px auto 34px;">
-                <div style="margin-bottom:14px;">{hero_avatar}</div>
-                <div class="sec-eyebrow">PORTOFOLIO KOLABORATOR &nbsp;·&nbsp; FASILKOM UI</div>
-                <div class="sec-title" style="font-size:clamp(34px, 4.6vw, 56px);">{esc(disp_title)}</div>
+            <div class="sec-head" style="margin: 14px auto 24px;">
+                <div style="margin-bottom:12px;">{hero_avatar}</div>
+                <div class="sec-eyebrow">PROFIL KOLABORATOR &nbsp;·&nbsp; FASILKOM UI</div>
+                <div class="sec-title" style="font-size:clamp(32px, 4.3vw, 52px);">{esc(disp_title)}</div>
                 <div class="sec-desc">{esc(disp_sub)}</div>
             </div>
 
-            <div class="spec-grid-3" style="margin-bottom: 36px;">
-                <div class="spec-box">
-                    <div style="font-size:11px;font-weight:700;letter-spacing:.14em;color:var(--brown-light);">AFILIASI &amp; PERAN</div>
-                    <div class="spec-big-num">{prof['year']}</div>
-                    <div style="font-size:17px;font-weight:800;color:#fff;margin-bottom:6px;">{esc(prof['campus'] or 'Universitas Belum Diisi')}</div>
-                    <div style="font-size:13px;color:var(--muted);line-height:1.55;margin-bottom:12px;">
-                        Program Studi: <b style="color:#fff">{esc(prof['major'] or '—')}</b>
-                    </div>
-                    <div><span class="rect-tag" style="margin:0">{esc(prof.get('role', 'Kolaborator'))}</span></div>
-                </div>
-
-                <div class="spec-box">
-                    <div style="font-size:11px;font-weight:700;letter-spacing:.14em;color:var(--brown-light);">ARSITEKTUR KEAHLIAN</div>
-                    <div class="spec-big-num">{len(prof['skills'])} Skill</div>
-                    <div style="font-size:17px;font-weight:800;color:#fff;margin-bottom:10px;">Spesialisasi Aktif</div>
-                    <div>{skills_markup}</div>
-                </div>
-
-                <div class="spec-box">
-                    <div style="font-size:11px;font-weight:700;letter-spacing:.14em;color:var(--brown-light);">BOBOT &amp; KETERSEDIAAN</div>
-                    <div class="spec-big-num">{weight_pct}%</div>
-                    <div style="font-size:17px;font-weight:800;color:#fff;margin-bottom:6px;">Level {esc(prof['level'])}</div>
-                    <div style="font-size:13px;color:var(--muted);line-height:1.55;">
-                        Jadwal Kolaborasi: <b style="color:#fff">{esc(prof['availability'] or 'Fleksibel')}</b>
+            <div class="spec-box" style="padding:24px 28px;margin-bottom:26px;">
+                <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:14px;padding-bottom:18px;margin-bottom:18px;border-bottom:1px solid var(--border);">
+                    <div>
+                        <div style="font-size:10.5px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--brown-light);margin-bottom:5px;">PERAN UTAMA &amp; AFILIASI</div>
+                        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+                            <span class="rect-tag" style="margin:0;">{esc(prof.get('role', 'Kolaborator'))}</span>
+                            <span style="font-size:14px;font-weight:700;color:#fff;">{esc(prof.get('major') or 'Program Studi Belum Diisi')} · {esc(prof.get('campus') or 'Universitas Belum Diisi')} ({prof['year']})</span>
+                        </div>
                     </div>
                     {links_html}
+                </div>
+                <div style="display:grid;grid-template-columns:1.25fr 1fr;gap:22px;">
+                    <div>
+                        <div style="font-size:10.5px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--brown-light);margin-bottom:8px;">KEAHLIAN &amp; LEVEL KEMAHIRAN ({len(prof.get('skills', []))} SKILL)</div>
+                        <div>{skills_markup}</div>
+                    </div>
+                    <div>
+                        <div style="font-size:10.5px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--brown-light);margin-bottom:8px;">KETERSEDIAAN WAKTU MINGGUAN</div>
+                        <div>{slots_markup}</div>
+                    </div>
                 </div>
             </div>
         """)
 
-        with st.form("profile_form"):
-            st.markdown("#### Perbarui Identitas Akademik & Keahlian")
-            col_l, col_r = st.columns(2, gap="medium")
-            with col_l:
-                name = st.text_input("Nama Lengkap *", value=prof["name"], placeholder="Farraj Bagas")
-                curr_role = prof.get("role", ROLE_OPTS[0])
-                role = st.selectbox("Peran Utama dalam Tim *", ROLE_OPTS, index=ROLE_OPTS.index(curr_role) if curr_role in ROLE_OPTS else 0)
-                campus = st.text_input("Universitas / Institusi", value=prof["campus"], placeholder="Universitas Indonesia")
-                c_maj, c_yr = st.columns([1.4, 0.8], gap="small")
-                major = c_maj.text_input("Program Studi", value=prof["major"], placeholder="Ilmu Komputer")
-                year = c_yr.number_input("Angkatan", 2015, 2030, prof["year"])
-                photo_in = st.text_input("URL Foto Profil (Opsional)", value=prof.get("photo", ""), placeholder="https://...")
-            with col_r:
-                skills = st.multiselect("Keahlian Utama *", SKILL_OPTS, default=prof["skills"])
-                curr_lvl = prof.get("level", "Menengah")
-                level = st.selectbox("Tingkat Pengalaman", LEVEL_OPTS, index=LEVEL_OPTS.index(curr_lvl) if curr_lvl in LEVEL_OPTS else 1)
-                avail = st.text_input("Ketersediaan Waktu", value=prof["availability"], placeholder="Weekday malam & weekend penuh")
-                c_wa, c_pf = st.columns(2, gap="small")
-                contact = c_wa.text_input("Kontak WhatsApp / LinkedIn", value=prof.get("contact", ""), placeholder="wa.me/62812...")
-                portfolio = c_pf.text_input("Portofolio / GitHub", value=prof["portfolio"], placeholder="github.com/username")
+        st.markdown("#### Perbarui Profil, Level per Keahlian, & Jadwal Mingguan")
+        col_l, col_r = st.columns(2, gap="medium")
+        with col_l:
+            name = st.text_input("Nama Lengkap *", value=prof["name"], placeholder="Farraj Bagas")
+            curr_role = prof.get("role", ROLE_OPTS[0])
+            role = st.selectbox("Peran Utama dalam Tim *", ROLE_OPTS, index=ROLE_OPTS.index(curr_role) if curr_role in ROLE_OPTS else 0)
+            campus = st.text_input("Universitas / Institusi", value=prof["campus"], placeholder="Universitas Indonesia")
+            c_maj, c_yr = st.columns([1.4, 0.8], gap="small")
+            major = c_maj.text_input("Program Studi", value=prof["major"], placeholder="Ilmu Komputer")
+            year = c_yr.number_input("Angkatan", 2015, 2030, prof["year"])
+        with col_r:
+            skills = st.multiselect("Pilih Keahlian Utama *", SKILL_OPTS, default=prof["skills"])
+            valid_default_slots = [s for s in curr_slots if s in TIME_SLOT_OPTS]
+            avail_slots = st.multiselect(
+                "Slot Ketersediaan Waktu Mingguan *",
+                TIME_SLOT_OPTS,
+                default=valid_default_slots or [TIME_SLOT_OPTS[1], TIME_SLOT_OPTS[3]],
+            )
+            c_wa, c_pf = st.columns(2, gap="small")
+            contact = c_wa.text_input("Kontak WhatsApp / LinkedIn", value=prof.get("contact", ""), placeholder="wa.me/62812...")
+            portfolio = c_pf.text_input("Portofolio / GitHub (Opsional)", value=prof["portfolio"], placeholder="github.com/username")
 
-            if st.form_submit_button("Simpan Perubahan Profil", width="stretch", type="primary"):
-                if not name.strip() or not skills:
-                    st.error("Nama lengkap dan minimal 1 keahlian wajib diisi.")
-                else:
-                    updated_prof = {
-                        "name": name.strip(), "major": major.strip(), "year": year, "campus": campus.strip(),
-                        "role": role, "skills": skills, "level": level,
-                        "availability": avail.strip(), "contact": contact.strip(),
-                        "portfolio": portfolio.strip(), "photo": photo_in.strip()
-                    }
-                    st.session_state.user_profile = updated_prof
-                    curr_acc = st.session_state.get("current_account", "")
-                    if curr_acc and curr_acc in st.session_state.accounts:
-                        st.session_state.accounts[curr_acc]["name"] = updated_prof["name"]
-                        st.session_state.accounts[curr_acc]["campus"] = updated_prof["campus"]
-                        st.session_state.accounts[curr_acc]["profile"] = dict(updated_prof)
-                    st.toast("Profil berhasil disimpan.")
-                    st.rerun()
+        new_skill_levels = {}
+        if skills:
+            html('<div style="font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--brown-light);margin:10px 0 8px;">Atur Tingkat Kemahiran per Keahlian (Pemula 60% · Menengah 80% · Mahir 100%)</div>')
+            lvl_cols = st.columns(min(len(skills), 3), gap="small")
+            for idx, sk in enumerate(skills):
+                prev_lvl = curr_skill_levels.get(sk, prof.get("level", "Menengah"))
+                with lvl_cols[idx % len(lvl_cols)]:
+                    new_skill_levels[sk] = st.selectbox(
+                        f"Level {sk}",
+                        LEVEL_OPTS,
+                        index=LEVEL_OPTS.index(prev_lvl) if prev_lvl in LEVEL_OPTS else 1,
+                        key=f"sk_lvl_{sk}",
+                    )
+
+        st.write("")
+        if st.button("Simpan Perubahan Profil", key="save_profile_btn", width="stretch", type="primary"):
+            if not name.strip() or not skills:
+                st.error("Nama lengkap dan minimal 1 keahlian wajib diisi.")
+            else:
+                avg_weight = sum(LEVEL_WEIGHTS[new_skill_levels.get(s, "Menengah")] for s in skills) / len(skills)
+                dominant_lvl = "Mahir" if avg_weight >= 0.9 else ("Menengah" if avg_weight >= 0.72 else "Pemula")
+                avail_str = ", ".join(avail_slots) if avail_slots else "Fleksibel Setiap Hari"
+                updated_prof = {
+                    "name": name.strip(),
+                    "major": major.strip(),
+                    "year": year,
+                    "campus": campus.strip(),
+                    "role": role,
+                    "skills": skills,
+                    "skill_levels": new_skill_levels,
+                    "level": dominant_lvl,
+                    "availability": avail_str,
+                    "availability_slots": avail_slots,
+                    "contact": contact.strip(),
+                    "portfolio": portfolio.strip(),
+                    "photo": prof.get("photo", ""),
+                }
+                st.session_state.user_profile = updated_prof
+                curr_acc = st.session_state.get("current_account", "")
+                if curr_acc and curr_acc in st.session_state.accounts:
+                    st.session_state.accounts[curr_acc]["name"] = updated_prof["name"]
+                    st.session_state.accounts[curr_acc]["campus"] = updated_prof["campus"]
+                    st.session_state.accounts[curr_acc]["profile"] = dict(updated_prof)
+                st.toast("Profil, level per keahlian, dan jadwal mingguan berhasil disimpan.")
+                st.rerun()
 
     # --------------------------------------------------------------------------
     # HALAMAN 2: KOMPETISI (Editorial Stage Header + Photographic Hover-Zoom Cards, 0% Data Dummy)
