@@ -1635,7 +1635,7 @@ else:
                 st.write("")
 
     # --------------------------------------------------------------------------
-    # HALAMAN 4: TIM SAYA
+    # HALAMAN 4: TIM SAYA (Editorial Stage Header + Aligned Team Showcase Cards)
     # --------------------------------------------------------------------------
     else:
         teams = st.session_state.teams
@@ -1643,14 +1643,10 @@ else:
         comp_choices = [c["title"] for c in comps] or ["Kompetisi Umum"]
 
         html(f"""
-            <div class="catalog-header">
-                <div>
-                    <div style="font-size:28px;font-weight:800;letter-spacing:-0.03em;color:#fff;line-height:1.1;">Rekrutmen & Manajemen Tim</div>
-                    <div style="font-size:13.5px;color:var(--muted);margin-top:6px;">Bentuk tim baru untuk kompetisi incaranmu atau bergabung ke tim yang sedang membuka posisi.</div>
-                </div>
-                <div style="font-size:13px;font-weight:700;color:var(--brown-light);background:var(--card);border:1px solid var(--border);padding:8px 16px;border-radius:8px;">
-                    {len(teams)} Tim Terbuka
-                </div>
+            <div class="sec-head" style="margin-bottom:28px;">
+                <div class="sec-eyebrow">MANAJEMEN KOLABORASI &nbsp;·&nbsp; {len(teams)} TIM TERBUKA</div>
+                <div class="sec-title" style="font-size:clamp(34px, 4.6vw, 56px);">Rekrutmen &amp; Manajemen Tim.</div>
+                <div class="sec-desc">Bentuk tim baru untuk kompetisi incaranmu, kelola anggota yang direkrut dari halaman Rekomendasi, atau bergabung ke tim terbuka.</div>
             </div>
         """)
 
@@ -1683,46 +1679,86 @@ else:
 
         st.write("")
         if not teams:
-            html("""
-                <div class="arch-card" style="text-align:center;padding:48px 28px !important;">
-                    <div style="font-size:18px;font-weight:800;letter-spacing:-0.02em;color:#fff;margin-bottom:6px;">Belum Ada Tim yang Terbentuk</div>
-                    <div style="font-size:13.5px;color:var(--muted);max-width:46ch;margin:0 auto;line-height:1.55;">
-                        Isi formulir <b>Bentuk Tim Baru</b> di atas untuk membuka rekrutmen anggota tim pertamamu.
+            empty_team_avatar = avatar(prof.get("name", ""), size=78, photo_url=prof.get("photo", ""))
+            html(f"""
+                <div class="spec-box" style="text-align:center;padding:42px 28px;margin-top:6px;margin-bottom:14px;">
+                    <div style="margin-bottom:14px;">{empty_team_avatar}</div>
+                    <div style="font-size:11px;font-weight:700;letter-spacing:.16em;color:var(--brown-light);margin-bottom:8px;">BELUM ADA TIM AKTIF</div>
+                    <div style="font-size:24px;font-weight:800;letter-spacing:-0.03em;color:#fff;margin-bottom:8px;">Belum Ada Tim yang Terbentuk</div>
+                    <div style="font-size:13.5px;color:var(--muted);max-width:520px;margin:0 auto;line-height:1.6;">
+                        Isi formulir <b>Bentuk Tim Baru</b> di atas atau rekrut rekan langsung melalui tombol <b>+ Ajak ke Tim</b> pada halaman <b>Rekomendasi</b>.
                     </div>
                 </div>
             """)
+            if st.button("Cari & Rekrut Rekan di Halaman Rekomendasi →", key="goto_rec_from_team", width="stretch", type="secondary"):
+                st.session_state.active_page = "Rekomendasi"
+                st.rerun()
         else:
-            cols = st.columns(2, gap="medium")
-            for idx, tm in enumerate(teams):
-                cur_members = tm["members"]
-                is_full = len(cur_members) >= tm["max_size"]
-                user_label = prof["name"] or "Anda"
-                already_in = user_label in cur_members
-                roles_html = badges(tm["roles_needed"], muted=True) if tm["roles_needed"] else '<span class="rect-tag subtle">Terbuka untuk semua peran</span>'
+            for row_start in range(0, len(teams), 2):
+                cols = st.columns(2, gap="medium")
+                for col_idx, tm in enumerate(teams[row_start:row_start + 2]):
+                    idx = row_start + col_idx
+                    cur_members = tm["members"]
+                    is_full = len(cur_members) >= tm["max_size"]
+                    user_label = prof["name"] or "Anda"
+                    already_in = user_label in cur_members
+                    fill_pct = min(100, round(len(cur_members) / max(tm["max_size"], 1) * 100))
+                    status_tag = "Tim Penuh" if is_full else "Rekrutmen Terbuka"
+                    roles_html = badges(tm["roles_needed"], muted=True) if tm["roles_needed"] else '<span class="rect-tag subtle">Terbuka untuk semua peran</span>'
+                    avatars_row = "".join(
+                        f'<span style="display:inline-flex;margin-right:6px;">{avatar(m, size=32)}</span>'
+                        for m in cur_members[:4]
+                    )
 
-                with cols[idx % 2]:
-                    html(f"""
-                        <div class="arch-card hoverable" style="margin-bottom:10px;">
-                            <div style="display:flex;justify-content:space-between;align-items:center;padding-bottom:10px;margin-bottom:10px;border-bottom:1px solid var(--border);">
-                                <span class="rect-tag" style="margin:0">{esc(tm['competition'])}</span>
-                                <span style="font-size:12px;font-weight:700;color:var(--brown-light);">{len(cur_members)} / {tm['max_size']} Anggota</span>
+                    with cols[col_idx]:
+                        html(f"""
+                            <div class="spec-box" style="height:256px;padding:22px 24px;margin-bottom:10px;display:flex;flex-direction:column;justify-content:space-between;box-sizing:border-box;">
+                                <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:14px;">
+                                    <div style="min-width:0;flex:1;">
+                                        <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;flex-wrap:nowrap;overflow:hidden;">
+                                            <span class="rect-tag" style="margin:0;white-space:nowrap;">{esc(tm['competition'])}</span>
+                                            <span class="rect-tag subtle" style="margin:0;white-space:nowrap;">{esc(status_tag)}</span>
+                                        </div>
+                                        <div style="font-size:21px;font-weight:800;letter-spacing:-0.025em;color:#fff;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{esc(tm['name'])}</div>
+                                    </div>
+                                    <div style="text-align:right;flex:none;padding-left:8px;">
+                                        <div style="font-size:32px;font-weight:900;letter-spacing:-0.04em;color:var(--brown-light);line-height:1;">{len(cur_members)}/{tm['max_size']}</div>
+                                        <div style="font-size:10px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-top:4px;">ANGGOTA</div>
+                                    </div>
+                                </div>
+                                <div>
+                                    <div class="bar-track" style="margin:0 0 10px 0;">
+                                        <div class="bar-fill" style="width:{fill_pct}%;"></div>
+                                    </div>
+                                    <div style="display:flex;align-items:center;gap:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+                                        <div style="display:inline-flex;align-items:center;">{avatars_row}</div>
+                                        <span style="font-size:12.5px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;">Anggota: <b style="color:#fff">{esc(', '.join(cur_members))}</b></span>
+                                    </div>
+                                </div>
+                                <div>
+                                    <div style="font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--brown-light);margin-bottom:6px;">Mencari Peran</div>
+                                    <div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{roles_html}</div>
+                                </div>
                             </div>
-                            <div style="font-size:20px;font-weight:800;letter-spacing:-0.025em;color:#fff;margin-bottom:6px;">{esc(tm['name'])}</div>
-                            <div style="font-size:12.5px;color:var(--muted);margin-bottom:12px;">Anggota Saat Ini: <b style="color:#fff">{esc(', '.join(cur_members))}</b></div>
-                            <div style="font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--brown-light);margin-bottom:6px;">Mencari Peran</div>
-                            <div>{roles_html}</div>
-                        </div>
-                    """)
-                    b_col1, b_col2 = st.columns(2, gap="small")
-                    with b_col1:
-                        if not already_in and not is_full:
-                            if st.button(f"Gabung ke {tm['name']}", key=f"join_tm_{idx}", width="stretch", type="primary"):
-                                tm["members"].append(user_label)
-                                st.toast(f"Berhasil bergabung ke {tm['name']}.")
-                                st.rerun()
-                        else:
-                            status_lbl = "Sudah Bergabung" if already_in else "Tim Penuh"
-                            st.button(status_lbl, key=f"join_tm_{idx}", width="stretch", disabled=True)
-                    with b_col2:
-                        if tm.get("contact"):
-                            html(f'<a class="action-link secondary" style="width:100%" href="{esc(safe_url(tm["contact"]))}" target="_blank">Hubungi Tim ↗</a>')
+                        """)
+                        b_col1, b_col2 = st.columns(2, gap="small")
+                        with b_col1:
+                            if not already_in and not is_full:
+                                if st.button(f"Gabung ke {tm['name']}", key=f"join_tm_{idx}", width="stretch", type="primary"):
+                                    tm["members"].append(user_label)
+                                    st.toast(f"Berhasil bergabung ke {tm['name']}.")
+                                    st.rerun()
+                            elif not is_full:
+                                if st.button("+ Cari Anggota Lagi →", key=f"find_more_{idx}", width="stretch", type="primary"):
+                                    if tm["competition"] in [c["title"] for c in comps]:
+                                        st.session_state.selected_comp = tm["competition"]
+                                    st.session_state.active_page = "Rekomendasi"
+                                    st.rerun()
+                            else:
+                                st.button("Tim Sudah Penuh", key=f"join_tm_{idx}", width="stretch", disabled=True)
+                        with b_col2:
+                            if tm.get("contact"):
+                                html(f'<a class="action-link secondary" style="width:100%" href="{esc(safe_url(tm["contact"]))}" target="_blank">Hubungi Tim ↗</a>')
+                            else:
+                                st.button("Kontak Belum Diisi", key=f"no_contact_tm_{idx}", width="stretch", disabled=True)
+                st.write("")
