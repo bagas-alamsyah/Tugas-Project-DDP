@@ -20,15 +20,15 @@ A web app that helps university students find teammates for competitions (hackat
 
 **MVP (must have)**
 
-- Create a profile: name, major, year, campus, skills with levels (beginner / intermediate / advanced), availability, optional portfolio link
-- Browse competitions: name, category, deadlines, team size, roles needed
-- Get a ranked list of recommended teammates for a competition
+- Create a profile: name, major, year, campus, main team role, per-skill proficiency levels (Pemula / Menengah / Mahir), structured weekly availability slots, and optional portfolio link
+- Browse & add competitions: pre-loaded seed competition catalog (`data/competitions.csv` + curated national competitions) combined with user-submitted competitions featuring **Smart Auto-Detect** for category, roles needed, and required skills
+- Get a ranked list of recommended teammates for a competition with an explicit **50-30-20 score breakdown** (`Skill Overlap`, `Role Fit`, `Time Overlap`) on every candidate card
 
 **If time permits**
 
 - Register and log in (password hashed with bcrypt)
-- Team model (create and join teams)
-- Contact matches through the WhatsApp / LinkedIn link on their profile
+- Team model (create teams, join open teams, or 1-click invite recommended candidates directly into a team)
+- Contact matches and teams through the WhatsApp / LinkedIn link on their card
 
 ## Project Structure
 
@@ -54,11 +54,11 @@ Each candidate gets a score from 0 to 1 for a given competition:
 score = skill_overlap * 0.5 + role_fit * 0.3 + time_overlap * 0.2
 ```
 
-- **skill_overlap**: how many required skills the user has, weighted by level
-- **role_fit**: whether the user's role matches a role the team needs
-- **time_overlap**: shared availability between the user and the team
+- **skill_overlap**: how many required/complementary skills the candidate has, weighted by each skill's proficiency level (Pemula 60%, Menengah 80%, Mahir 100%)
+- **role_fit**: whether the candidate's primary role matches a role the competition/team needs and complements the user's role
+- **time_overlap**: shared weekly availability time slots between the user and the candidate
 
-Candidates are sorted by score, highest first. Weights are set at the top of `matching.py` and can be tuned.
+Candidates are sorted by score, highest first, with individual `Skill (50%)`, `Role (30%)`, and `Time (20%)` percentages displayed on each card. Weights are set at the top of `matching.py` and can be tuned.
 
 ## Setup
 
@@ -91,8 +91,8 @@ python -m pytest matching_test.py
 
 This is an end-term project MVP, so:
 
-- Competition data is loaded from a CSV, not scraped automatically
-- No in-app chat; users contact each other externally
+- Competition data uses a hybrid seed catalog (`data/competitions.csv` + curated seed list) and supports manual user additions with keyword-based Smart Auto-Detect (not scraped live from external websites)
+- No in-app chat; users contact each other externally via WhatsApp / LinkedIn links
 - Spam protection is limited to basic validation
 - Passwords are hashed, but the app is not production-hardened
 
