@@ -258,6 +258,71 @@ def safe_url(url: str) -> str:
     u = url.strip()
     return u if u.startswith(("http://", "https://")) else f"https://{u}"
 
+def compute_match_breakdown(user: dict, cand: dict, comp: dict | None = None) -> tuple[int, int, int, int]:
+    """Return (final_score, skill_pct, role_pct, time_pct) using README 50-30-20 formula."""
+    u_skills = set(user.get("skills", []))
+    c_skills = set(cand.get("skills", []))
+    c_levels = cand.get("skill_levels") or {}
+    default_lvl = cand.get("level", "Menengah")
+
+    def avg_skill_weight(skills_subset: set) -> float:
+        """Compute average level weight (0.6..1.0) across a set of skills."""
+        target = skills_subset or c_skills
+        if not target:
+            return LEVEL_WEIGHTS.get(default_lvl, 0.8)
+        return sum(LEVEL_WEIGHTS.get(c_levels.get(s, default_lvl), 0.8) for s in target) / len(target)
+
+    if comp and comp.get("required_skills"):
+        req_skills = set(comp["required_skills"])
+        matched = c_skills & req_skills
+        overlap = len(matched) / max(len(req_skills), 1)
+        w = avg_skill_weight(matched)
+    elif u_skills:
+        comp_skills = len(c_skills - u_skills) + 0.65 * len(c_skills & u_skills)
+        overlap = min(1.0, comp_skills / max(len(u_skills) + 1, 3.5))
+        w = avg_skill_weight(c_skills)
+    else:
+        overlap = min(1.0, len(c_skills) / 3.8)
+        w = avg_skill_weight(c_skills)
+    skill_pct = min(99, max(45, round((overlap * w * 0.78 + 0.22) * 100)))
+
+    c_role = cand.get("role", "")
+    u_role = user.get("role", "")
+    needed_roles = comp.get("roles_needed", []) if comp else []
+    if needed_roles:
+        if c_role in needed_roles and c_role != u_role:
+            role_pct = 98
+        elif c_role in needed_roles:
+            role_pct = 86
+        else:
+            role_pct = 62
+    else:
+        role_pct = 95 if (c_role and c_role != u_role) else 74
+
+    u_slots = set(user.get("availability_slots") or [])
+    c_slots = set(cand.get("availability_slots") or [])
+    c_time_raw = (cand.get("availability") or cand.get("avail", "")).lower()
+    u_time_raw = user.get("availability", "").lower()
+    if "Fleksibel Setiap Hari" in c_slots or "Fleksibel Setiap Hari" in u_slots or "fleksibel" in c_time_raw:
+        time_pct = 96
+    elif u_slots and c_slots:
+        shared = len(u_slots & c_slots)
+        time_pct = 94 if shared >= 2 else (86 if shared == 1 else 64)
+    elif u_time_raw and any(tok in c_time_raw for tok in u_time_raw.replace(",", " ").split()):
+        time_pct = 90
+    elif "malam" in c_time_raw and "pekan" in c_time_raw:
+        time_pct = 86
+    else:
+        time_pct = 74
+
+    final = round(skill_pct * 0.5 + role_pct * 0.3 + time_pct * 0.2)
+    return max(1, min(99, final)), skill_pct, role_pct, time_pct
+
+
+def compute_match_score(user: dict, cand: dict, comp: dict | None = None) -> int:
+    """Compute matching percentage using README formula: 0.5*skill + 0.3*role + 0.2*time."""
+    return compute_match_breakdown(user, cand, comp)[0]
+
 # 3. Architectural CSS + Scroll-Driven Animations (Apple / ASUS Product Showcase Style)
 curr_view = st.session_state.view
 is_app = curr_view == "app"
