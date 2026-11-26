@@ -4,6 +4,7 @@ from pathlib import Path
 import pandas as pd
 import streamlit as st
 import tomllib
+from matching import compute_match_breakdown, compute_match_score
 
 BASE_DIR = Path(__file__).parent
 with open(BASE_DIR / "settings.toml", "rb") as f:
